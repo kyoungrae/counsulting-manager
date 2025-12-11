@@ -1,0 +1,73 @@
+:root {
+  --ewha-green: #00462A;
+  --ewha-green-light: #0C6040;
+  --ewha-gold: #8E793E;
+  /* 보조색으로 금색 계열 */
+  --text-dark: #1F1F1F;
+  --text-gray: #666666;
+  --bg-light: #F9F9F9;
+  --border-color: #E0E0E0;
+
+  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-serif: 'Noto Serif KR', serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  background-color: #F9F9F9;
+  min-height: 100vh;
+}
+
+/* Response for mobile */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+}
+
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  color: var(--ewha-green);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  font-family: var(--font-sans);
+}

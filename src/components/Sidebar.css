@@ -1,0 +1,192 @@
+/* Sidebar Styles */
+.sidebar {
+    width: 250px;
+    background-color: white;
+    border-right: 1px solid var(--border-color);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem 0;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.02);
+    transition: width 0.3s ease;
+    /* Slide transition */
+    flex-shrink: 0;
+    /* Prevent shrinking in flex container */
+    overflow: hidden;
+    /* Hide content when collapsed */
+}
+
+.sidebar.collapsed {
+    width: 80px;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    margin-bottom: 3rem;
+    position: relative;
+    height: 40px;
+    /* consistent height for header area */
+}
+
+/* Adjustments for collapsed state */
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 0;
+}
+
+.sidebar.collapsed .sidebar-logo {
+    display: none;
+    /* Hide logo text, might show icon if desired, or just toggle button */
+}
+
+/* Logo Styles */
+.sidebar-logo {
+    color: var(--ewha-green);
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 4px solid var(--ewha-green);
+    white-space: nowrap;
+}
+
+/* Toggle Button Styles */
+.toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-gray);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.toggle-btn:hover {
+    background-color: #f0f0f0;
+    color: var(--ewha-green);
+}
+
+.sidebar.collapsed .toggle-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+
+.menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.menu-item {
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    color: var(--text-gray);
+    border-left: 4px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    /* Space between icon and text */
+    height: 50px;
+    white-space: nowrap;
+    /* Prevent text wrapping */
+}
+
+.sidebar.collapsed .menu-item {
+    justify-content: center;
+    padding: 1rem 0;
+}
+
+.menu-item:hover {
+    background-color: #f5f5f5;
+    color: var(--ewha-green);
+}
+
+.menu-item.active {
+    background-color: #F0F6F4;
+    color: var(--ewha-green);
+    border-left-color: var(--ewha-green);
+    font-weight: 700;
+}
+
+.menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+}
+
+.menu-item-text {
+    font-size: 1.1rem;
+    transition: opacity 0.2s;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem 0;
+        transition: none;
+    }
+
+    .sidebar.collapsed {
+        width: 100%;
+        /* Mobile doesn't support side collapse usually, maybe hide menu list? */
+    }
+
+    .sidebar-header {
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .toggle-btn {
+        display: none;
+        /* Hide toggle on mobile for now */
+    }
+
+    .sidebar-logo {
+        margin-bottom: 0;
+        border-bottom: none;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .menu-list {
+        flex-direction: row;
+        justify-content: center;
+        gap: 0;
+    }
+
+    .menu-item {
+        padding: 0.8rem 1.5rem;
+        border-left: none;
+        border-bottom: 3px solid transparent;
+        justify-content: center;
+        height: auto;
+        gap: 0.5rem;
+    }
+
+    .menu-item.active {
+        border-left: none;
+        border-bottom-color: var(--ewha-green);
+        background: none;
+    }
+}

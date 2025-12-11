@@ -1,0 +1,78 @@
+{
+  "name": "ewha-consulting-analytics",
+  "productName": "이화여대 컨설팅 분석",
+  "private": true,
+  "version": "1.0.0",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "serve": "serve dist -p 3000",
+    "electron": "electron .",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "npm run build && electron-builder --mac",
+    "electron:build:mac": "npm run build && electron-builder --mac"
+  },
+  "dependencies": {
+    "lucide-react": "^0.556.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "32.3.3",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "serve": "^14.2.5",
+    "terser": "^5.44.1",
+    "vite": "^7.2.4",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "com.ewha.consulting.analytics",
+    "productName": "이화여대 컨설팅 분석",
+    "directories": {
+      "output": "release"
+    },
+    "afterPack": "build/afterPack.cjs",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "compression": "maximum",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "${productName} ${version}"
+    }
+  }
+}
