@@ -161,6 +161,28 @@ const EwhaChart = ({ data }) => {
             alert("이미지 저장 중 오류가 발생했습니다.");
         }
     };
+
+    const renderPayloadLabel = (dataKey, textColor = '#fff') => (props) => {
+        const { x, y, width, height, payload } = props;
+        const value = payload && payload[dataKey];
+        if (!value || value === 0) return null;
+
+        return (
+            <text x={x + width / 2} y={y + height / 2} fill={textColor} textAnchor="middle" dominantBaseline="middle" fontSize={10}>
+                {value}
+            </text>
+        );
+    };
+
+    const renderCustomTopLabel = (props) => {
+        const { x, y, width, height, value } = props;
+        if (!value || value === 0) return null;
+        return (
+            <text x={x + width / 2} y={y - 5} fill="#333" textAnchor="middle" fontSize={11}>
+                {value}
+            </text>
+        );
+    };
     if (!data || data.length === 0) {
         return (
             <div className="chart-container" style={{ textAlign: 'center', padding: '50px' }}>
@@ -195,7 +217,7 @@ const EwhaChart = ({ data }) => {
                                         <YAxis />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="count" name="신청 건수" fill={COLORS[0]} radius={[4, 4, 0, 0]} label={{ position: 'top', fontSize: 11, fill: '#333' }} />
+                                        <Bar dataKey="count" name="신청 건수" fill={COLORS[0]} radius={[4, 4, 0, 0]} label={renderCustomTopLabel} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -212,8 +234,8 @@ const EwhaChart = ({ data }) => {
                                         <YAxis />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} label={{ position: 'inside', fontSize: 10, fill: '#fff' }} />
-                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]} label={{ position: 'inside', fontSize: 10, fill: '#fff' }} />
+                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} label={renderPayloadLabel('actual')} />
+                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]} label={renderPayloadLabel('noShow')} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -230,9 +252,9 @@ const EwhaChart = ({ data }) => {
                                         <YAxis />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="count1" name="1회 이용" stackId="a" fill="#81C784" label={{ position: 'inside', fontSize: 10, fill: '#fff' }} />
-                                        <Bar dataKey="count2" name="2회 이용" stackId="a" fill="#4CAF60" label={{ position: 'inside', fontSize: 10, fill: '#fff' }} />
-                                        <Bar dataKey="count3" name="3회 이상" stackId="a" fill="#0D5F34" radius={[4, 4, 0, 0]} label={{ position: 'inside', fontSize: 10, fill: '#fff' }} />
+                                        <Bar dataKey="count1" name="1회 이용" stackId="a" fill="#81C784" label={renderPayloadLabel('count1')} />
+                                        <Bar dataKey="count2" name="2회 이용" stackId="a" fill="#4CAF60" label={renderPayloadLabel('count2')} />
+                                        <Bar dataKey="count3" name="3회 이상" stackId="a" fill="#0D5F34" radius={[4, 4, 0, 0]} label={renderPayloadLabel('count3')} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -275,8 +297,8 @@ const EwhaChart = ({ data }) => {
                                         <YAxis dataKey="name" type="category" width={100} />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} label={{ position: 'inside', fontSize: 10, fill: '#fff' }} />
-                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[0, 4, 4, 0]} label={{ position: 'inside', fontSize: 10, fill: '#fff' }} />
+                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} label={renderPayloadLabel('actual')} />
+                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[0, 4, 4, 0]} label={renderPayloadLabel('noShow')} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
