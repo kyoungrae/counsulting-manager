@@ -1,0 +1,73 @@
+
+> ewha-consulting-analytics@1.0.0 electron:build:win
+> npm run build && electron-builder --win
+
+
+> ewha-consulting-analytics@1.0.0 build
+> vite build
+
+vite v7.2.7 building client environment for production...
+transforming...
+✓ 1694 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.76 kB │ gzip:   0.41 kB
+dist/assets/index-BGEQFKf7.css     18.84 kB │ gzip:   4.02 kB
+dist/assets/index-DgbloNjf.js   1,152.47 kB │ gzip: 256.76 kB
+✓ built in 906ms
+  • electron-builder  version=24.13.3 os=24.6.0
+  • loaded configuration  file=package.json ("build" field)
+  • description is missed in the package.json  appPackageFile=/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/package.json
+  • author is missed in the package.json  appPackageFile=/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/package.json
+  • packaging       platform=win32 arch=x64 electron=33.0.0 appOutDir=release/win-unpacked
+  ⨯ EOF
+github.com/develar/app-builder/pkg/icons.IsIcns
+	/Volumes/data/Documents/app-builder/pkg/icons/icns.go:135
+github.com/develar/app-builder/pkg/icons.LoadImage
+	/Volumes/data/Documents/app-builder/pkg/icons/image-util.go:34
+github.com/develar/app-builder/pkg/icons.loadImage
+	/Volumes/data/Documents/app-builder/pkg/icons/icon-converter.go:334
+github.com/develar/app-builder/pkg/icons.configureInputInfoFromSingleFile
+	/Volumes/data/Documents/app-builder/pkg/icons/icon-converter.go:316
+github.com/develar/app-builder/pkg/icons.doConvertIcon
+	/Volumes/data/Documents/app-builder/pkg/icons/icon-converter.go:241
+github.com/develar/app-builder/pkg/icons.ConvertIcon
+	/Volumes/data/Documents/app-builder/pkg/icons/icon-converter.go:56
+github.com/develar/app-builder/pkg/icons.ConfigureCommand.func1
+	/Volumes/data/Documents/app-builder/pkg/icons/icon-converter.go:33
+github.com/alecthomas/kingpin.(*actionMixin).applyActions
+	/Volumes/data/go/pkg/mod/github.com/alecthomas/kingpin@v2.2.6+incompatible/actions.go:28
+github.com/alecthomas/kingpin.(*Application).applyActions
+	/Volumes/data/go/pkg/mod/github.com/alecthomas/kingpin@v2.2.6+incompatible/app.go:557
+github.com/alecthomas/kingpin.(*Application).execute
+	/Volumes/data/go/pkg/mod/github.com/alecthomas/kingpin@v2.2.6+incompatible/app.go:390
+github.com/alecthomas/kingpin.(*Application).Parse
+	/Volumes/data/go/pkg/mod/github.com/alecthomas/kingpin@v2.2.6+incompatible/app.go:222
+main.main
+	/Volumes/data/Documents/app-builder/main.go:90
+runtime.main
+	/usr/local/Cellar/go/1.17/libexec/src/runtime/proc.go:255
+runtime.goexit
+	/usr/local/Cellar/go/1.17/libexec/src/runtime/asm_arm64.s:1133  
+  ⨯ /Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-bin/mac/app-builder_arm64 process failed ERR_ELECTRON_BUILDER_CANNOT_EXECUTE
+Exit code:
+1  failedTask=build stackTrace=Error: /Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-bin/mac/app-builder_arm64 process failed ERR_ELECTRON_BUILDER_CANNOT_EXECUTE
+Exit code:
+1
+    at ChildProcess.<anonymous> (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/builder-util/src/util.ts:252:14)
+    at Object.onceWrapper (node:events:623:26)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1085:16)
+    at Process.ChildProcess._handle.onexit (node:internal/child_process:304:5)
+From previous event:
+    at processImmediate (node:internal/timers:504:21)
+From previous event:
+    at WinPackager.signApp (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-lib/src/winPackager.ts:384:27)
+    at WinPackager.doSignAfterPack (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-lib/src/platformPackager.ts:336:32)
+    at WinPackager.doPack (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-lib/src/platformPackager.ts:321:7)
+    at WinPackager.pack (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-lib/src/platformPackager.ts:140:5)
+    at Packager.doBuild (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-lib/src/packager.ts:445:9)
+    at executeFinally (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/builder-util/src/promise.ts:12:14)
+    at Packager._build (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-lib/src/packager.ts:379:31)
+    at Packager.build (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/app-builder-lib/src/packager.ts:340:12)
+    at executeFinally (/Users/ikyoungtae/.gemini/antigravity/playground/volatile-meteor/node_modules/builder-util/src/promise.ts:12:14)

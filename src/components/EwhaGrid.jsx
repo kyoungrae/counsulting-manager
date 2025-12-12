@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Download, Upload, X } from 'lucide-react';
 import './EwhaGrid.css';
+import EwhaChart from './EwhaChart';
 
 const EwhaGrid = ({ title }) => {
     const fileInputRef = useRef(null);
@@ -446,12 +447,7 @@ const EwhaGrid = ({ title }) => {
             ) : activeTab === 'stats' ? (
                 <MonthlyStatsView data={currentData} />
             ) : (
-                <div className="chart-container">
-                    <div style={{ fontSize: '3rem', color: '#ddd' }}>📊</div>
-                    <h2>차트 분석 준비 중</h2>
-                    <p>현재 {isJob ? '취업' : '진로'} 데이터에 대한 시각화 차트를 준비하고 있습니다.</p>
-                    {currentData.length === 0 && <p style={{ color: 'red', fontSize: '0.9rem' }}>* 데이터가 업로드되지 않았습니다. 엑셀 파일을 먼저 업로드해주세요.</p>}
-                </div>
+                <EwhaChart data={currentData} />
             )}
 
             {activeTab === 'grid' && (
@@ -653,6 +649,82 @@ const MonthlyStatsView = ({ data }) => {
         });
     };
 
+    const handleConsultantStatsClick = (consultant, type) => {
+        if (!data || data.length === 0) return;
+
+        const targetStudents = [];
+
+        data.forEach(item => {
+            const studentIdStr = String(item.studentId).trim();
+            const isGrad = studentIdStr.length > 7;
+
+            // Apply filter
+            if (studentFilter === 'undergrad' && isGrad) return;
+            if (studentFilter === 'grad' && !isGrad) return;
+
+            const itemConsultant = String(item.consultant || '미지정').trim();
+            if (itemConsultant !== consultant) return;
+
+            const attendStatus = String(item.attend || '').trim();
+            const isNoShow = attendStatus === '불참' || attendStatus === '노쇼' || attendStatus === '결석';
+
+            if (type === 'total') {
+                targetStudents.push({ ...item, count: '-' });
+            } else if (type === 'actual' && !isNoShow) {
+                targetStudents.push({ ...item, count: '1' });
+            } else if (type === 'noShow' && isNoShow) {
+                targetStudents.push({ ...item, count: '-' });
+            }
+        });
+
+        // Calculate penalty if noShow
+        if (type === 'noShow') {
+            targetStudents.forEach(student => {
+                let consultDateStr = student.consultDate || student.date;
+                let penaltyEnd = '';
+
+                if (consultDateStr) {
+                    let consultDate;
+                    const dateString = String(consultDateStr).trim();
+
+                    if (typeof consultDateStr === 'number') {
+                        consultDate = new Date(Math.round((consultDateStr - 25569) * 86400 * 1000));
+                    } else if (dateString.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        consultDate = new Date(dateString);
+                    } else if (dateString.match(/^\d{4}\.\d{2}\.\d{2}/)) {
+                        consultDate = new Date(dateString.replace(/\./g, '-'));
+                    } else if (dateString.match(/^\d{4}\.\s\d{2}\.\s\d{2}/)) {
+                        const cleanDate = dateString.replace(/\s/g, '').replace(/\./g, '-');
+                        consultDate = new Date(cleanDate.substring(0, 10)); // Take YYYY-MM-DD
+                    }
+
+                    if (consultDate && !isNaN(consultDate.getTime())) {
+                        const penaltyDate = new Date(consultDate);
+                        penaltyDate.setMonth(penaltyDate.getMonth() + 1);
+                        const py = penaltyDate.getFullYear();
+                        const pm = String(penaltyDate.getMonth() + 1).padStart(2, '0');
+                        const pd = String(penaltyDate.getDate()).padStart(2, '0');
+                        penaltyEnd = `${py}-${pm}-${pd} 까지`;
+                    }
+                }
+                student.penalty = penaltyEnd || '날짜 확인 불가';
+            });
+        }
+
+        const titleMap = {
+            total: '전체 배정',
+            actual: '실제 진행',
+            noShow: '불참/노쇼'
+        };
+
+        setModalConfig({
+            show: true,
+            title: `${consultant} - ${titleMap[type]} 상세 내역`,
+            data: targetStudents,
+            type: type
+        });
+    };
+
     const handleDownloadModalData = () => {
         const ws = XLSX.utils.json_to_sheet(modalConfig.data.map(item => {
             const row = {
@@ -663,6 +735,9 @@ const MonthlyStatsView = ({ data }) => {
                 '학년': item.grade,
                 '이용 횟수': item.count
             };
+            if (modalConfig.type === 'noShow' || modalConfig.type === 'actual' || modalConfig.type === 'total') {
+                row['신청일'] = item.date;
+            }
             if (modalConfig.type === 'noShow') {
                 row['신청제한 기간'] = item.penalty;
             }
@@ -995,6 +1070,60 @@ const MonthlyStatsView = ({ data }) => {
         return result;
     }, [data, studentFilter, sortConfig, statsSubTab]);
 
+    const consultantStatsData = React.useMemo(() => {
+        if (!data || data.length === 0) return [];
+
+        const consultantCounts = {};
+
+        data.forEach(item => {
+            const studentIdStr = String(item.studentId).trim();
+            const isGrad = studentIdStr.length > 7;
+
+            // Apply filter
+            if (studentFilter === 'undergrad' && isGrad) return;
+            if (studentFilter === 'grad' && !isGrad) return;
+
+            const consultant = String(item.consultant || '미지정').trim();
+
+            if (!consultantCounts[consultant]) {
+                consultantCounts[consultant] = { actual: 0, noShow: 0 };
+            }
+
+            const attendStatus = String(item.attend || '').trim();
+            if (attendStatus === '불참' || attendStatus === '노쇼' || attendStatus === '결석') {
+                consultantCounts[consultant].noShow++;
+            } else {
+                consultantCounts[consultant].actual++;
+            }
+        });
+
+        let result = Object.entries(consultantCounts).map(([consultant, counts]) => ({
+            consultant,
+            actualCount: counts.actual,
+            noShowCount: counts.noShow,
+            totalCount: counts.actual + counts.noShow
+        }));
+
+        // Apply sorting
+        if (sortConfig.key && statsSubTab === 'consultant') {
+            result.sort((a, b) => {
+                let aVal = a[sortConfig.key];
+                let bVal = b[sortConfig.key];
+
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return sortConfig.direction === 'ascending' ? aVal - bVal : bVal - aVal;
+                }
+                if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
+                if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
+                return 0;
+            });
+        } else {
+            result.sort((a, b) => b.totalCount - a.totalCount); // Default desc total count
+        }
+
+        return result;
+    }, [data, studentFilter, sortConfig, statsSubTab]);
+
     // Download handlers
     const handleDownloadMonthly = () => {
         if (statsData.length === 0) return;
@@ -1062,6 +1191,20 @@ const MonthlyStatsView = ({ data }) => {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, '단과대별 컨설팅 횟수');
         XLSX.writeFile(wb, `단과대별_컨설팅_횟수_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const handleDownloadConsultant = () => {
+        if (consultantStatsData.length === 0) return;
+
+        const ws = XLSX.utils.json_to_sheet(consultantStatsData.map(row => ({
+            '컨설턴트': row.consultant,
+            '전체 배정 건수': row.totalCount,
+            '실제 진행 건수': row.actualCount,
+            '불참/노쇼 건수': row.noShowCount
+        })));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '컨설턴트별 현황');
+        XLSX.writeFile(wb, `컨설턴트별_현황_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
 
@@ -1135,6 +1278,12 @@ const MonthlyStatsView = ({ data }) => {
                     onClick={() => { setStatsSubTab('college'); setSortConfig({ key: null, direction: 'ascending' }); }}
                 >
                     단과대학교 컨설팅 횟수
+                </button>
+                <button
+                    className={`tab-btn ${statsSubTab === 'consultant' ? 'active' : ''}`}
+                    onClick={() => { setStatsSubTab('consultant'); setSortConfig({ key: null, direction: 'ascending' }); }}
+                >
+                    컨설턴트 내역
                 </button>
             </div>
 
@@ -1331,6 +1480,46 @@ const MonthlyStatsView = ({ data }) => {
                 </>
             )}
 
+            {statsSubTab === 'consultant' && (
+                <>
+                    <h4 style={{ padding: '0 1rem', marginTop: '1.5rem', color: '#666' }}>컨설턴트별 진행 내역</h4>
+                    <div className="grid-wrapper" style={{ overflowX: 'auto' }}>
+                        <div className="stats-grid-header" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+                            <span onClick={() => requestSort('consultant')} style={{ cursor: 'pointer' }}>컨설턴트{getSortIndicator('consultant')}</span>
+                            <span onClick={() => requestSort('totalCount')} style={{ cursor: 'pointer' }}>전체 배정{getSortIndicator('totalCount')}</span>
+                            <span onClick={() => requestSort('actualCount')} style={{ cursor: 'pointer' }}>실제 진행{getSortIndicator('actualCount')}</span>
+                            <span onClick={() => requestSort('noShowCount')} style={{ cursor: 'pointer' }}>불참/노쇼{getSortIndicator('noShowCount')}</span>
+                        </div>
+                        {consultantStatsData.length > 0 ? consultantStatsData.map((row, idx) => (
+                            <div key={idx} className="stats-grid-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+                                <div className="col-center">{row.consultant}</div>
+                                <div className="col-center clickable-cell" onClick={() => handleConsultantStatsClick(row.consultant, 'total')}>{row.totalCount}건</div>
+                                <div className="col-center clickable-cell" onClick={() => handleConsultantStatsClick(row.consultant, 'actual')}>{row.actualCount}건</div>
+                                <div className="col-center clickable-cell" style={{ color: row.noShowCount > 0 ? '#e74c3c' : 'inherit' }} onClick={() => handleConsultantStatsClick(row.consultant, 'noShow')}>{row.noShowCount}건</div>
+                            </div>
+                        )) : (
+                            <div className="no-data">
+                                <p>데이터가 없습니다.</p>
+                            </div>
+                        )}
+                        {consultantStatsData.length > 0 && (
+                            <div className="stats-grid-footer" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+                                <span>합계</span>
+                                <span>{consultantStatsData.reduce((sum, row) => sum + row.totalCount, 0)}건</span>
+                                <span>{consultantStatsData.reduce((sum, row) => sum + row.actualCount, 0)}건</span>
+                                <span>{consultantStatsData.reduce((sum, row) => sum + row.noShowCount, 0)}건</span>
+                            </div>
+                        )}
+                    </div>
+                    <div className="button-container" style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button className="ewha-btn" onClick={handleDownloadConsultant} disabled={consultantStatsData.length === 0}>
+                            <Download size={18} />
+                            엑셀 다운로드
+                        </button>
+                    </div>
+                </>
+            )}
+
             {
                 modalConfig.show && (
                     <div className="modal-overlay" onClick={closeModal}>
@@ -1340,24 +1529,36 @@ const MonthlyStatsView = ({ data }) => {
                                 <button className="modal-close" onClick={closeModal}><X size={24} /></button>
                             </div>
                             <div className="grid-wrapper" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                                <div className={`stats-name-grid-header ${modalConfig.type === 'noShow' ? 'stats-penalty-grid-header' : ''}`} style={modalConfig.type === 'noShow' ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr' } : {}}>
+                                <div className={`stats-name-grid-header ${modalConfig.type === 'noShow' ? 'stats-penalty-grid-header' : ''}`}
+                                    style={
+                                        modalConfig.type === 'noShow' ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr 2fr' } :
+                                            (modalConfig.type === 'actual' || modalConfig.type === 'total') ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr' } :
+                                                { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr' }
+                                    }>
                                     <span>이름</span>
                                     <span>학번</span>
                                     <span>대학</span>
                                     <span>학과</span>
                                     <span>학년</span>
                                     <span>이용 횟수</span>
+                                    {(modalConfig.type === 'noShow' || modalConfig.type === 'actual' || modalConfig.type === 'total') && <span>신청일</span>}
                                     {modalConfig.type === 'noShow' && <span>신청제한 기간</span>}
                                 </div>
                                 {modalConfig.data.length > 0 ? modalConfig.data.map((row, idx) => (
-                                    <div key={idx} className={`stats-name-grid-row ${modalConfig.type === 'noShow' ? 'stats-penalty-grid-row' : ''}`} style={modalConfig.type === 'noShow' ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr' } : {}}>
+                                    <div key={idx} className={`stats-name-grid-row ${modalConfig.type === 'noShow' ? 'stats-penalty-grid-row' : ''}`}
+                                        style={
+                                            modalConfig.type === 'noShow' ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr 2fr' } :
+                                                (modalConfig.type === 'actual' || modalConfig.type === 'total') ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr' } :
+                                                    { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr' }
+                                        }>
                                         <div className="col-center">{row.name}</div>
                                         <div className="col-center">{row.studentId}</div>
                                         <div className="col-center">{row.college}</div>
                                         <div className="col-center">{row.dept}</div>
                                         <div className="col-center">{row.grade}</div>
                                         <div className="col-center">{row.count}회</div>
-                                        {modalConfig.type === 'noShow' && <div className="col-center" style={{ color: '#e74c3c', fontWeight: 'bold' }}>{row.penalty}</div>}
+                                        {(modalConfig.type === 'noShow' || modalConfig.type === 'actual' || modalConfig.type === 'total') && <div className="col-center">{row.date}</div>}
+                                        {modalConfig.type === 'noShow' && <div className="col-center" style={{ color: '#e74c3c', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{row.penalty}</div>}
                                     </div>
                                 )) : (
                                     <div className="no-data"><p>데이터가 없습니다.</p></div>

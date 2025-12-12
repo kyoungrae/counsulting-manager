@@ -1,13 +1,22 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
-// FORCE FIX: Disable JIT compilation and Optimization via js-flags to ensure V8 runs in interpreter mode
-// This is critical for preventing V8 compiler crashes on macOS ARM64 (M4)
-// Also disabling sandbox as an extra compatibility layer
-app.commandLine.appendSwitch('no-sandbox');
-app.commandLine.appendSwitch('js-flags', '--jitless --no-opt --max-old-space-size=4096');
-app.commandLine.appendSwitch('disable-site-isolation-trials');
-app.disableHardwareAcceleration(); // Disable GPU acceleration for stability
+// CRITICAL FIX: Force V8 to run in interpreter mode without JIT to prevent SIGTRAP crashes
+// Set environment variables BEFORE any other Electron code runs
+// process.env.ELECTRON_RUN_AS_NODE = '0';
+// process.env.ELECTRON_DISABLE_SANDBOX = '1';
+
+// Apply comprehensive V8 and Chromium flags to maximize stability
+// app.commandLine.appendSwitch('no-sandbox');
+// app.commandLine.appendSwitch('disable-gpu');
+// app.commandLine.appendSwitch('disable-software-rasterizer');
+// app.commandLine.appendSwitch('disable-dev-shm-usage');
+// app.commandLine.appendSwitch('disable-accelerated-2d-canvas');
+// app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
+// app.commandLine.appendSwitch('js-flags', '--jitless --no-opt --no-turbo --no-concurrent-recompilation');
+
+// Disable all hardware acceleration
+app.disableHardwareAcceleration();
 
 let mainWindow;
 

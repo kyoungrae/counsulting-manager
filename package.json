@@ -14,12 +14,15 @@
     "electron": "electron .",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder --mac",
-    "electron:build:mac": "npm run build && electron-builder --mac"
+    "electron:build:mac": "npm run build && electron-builder --mac",
+    "electron:build:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.556.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "recharts": "^3.5.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -29,8 +32,8 @@
     "@vitejs/plugin-react": "^5.1.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
-    "electron": "32.3.3",
-    "electron-builder": "^26.0.12",
+    "electron": "33.0.0",
+    "electron-builder": "24.13.3",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -54,7 +57,7 @@
     ],
     "mac": {
       "identity": null,
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
@@ -73,6 +76,25 @@
     },
     "dmg": {
       "title": "${productName} ${version}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "ewha-consulting-analytics",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "이화여대 컨설팅 분석"
     }
   }
 }
