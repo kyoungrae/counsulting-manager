@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef } from 'react';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList,
     PieChart, Pie, Cell, Sector
 } from 'recharts';
 import { Download } from 'lucide-react';
@@ -46,8 +46,22 @@ const EwhaChart = ({ data }) => {
             let monthKey = 'Unknown';
             if (dateStr) {
                 const dateString = String(dateStr).trim();
-                if (dateString.match(/^\d{4}-\d{2}/)) monthKey = dateString.substring(0, 7);
-                else if (dateString.match(/^\d{4}\.\d{2}\.\d{2}/)) monthKey = dateString.substring(0, 7).replace('.', '-');
+                // Check if YYYY-MM format
+                if (dateString.match(/^\d{4}-\d{2}/)) {
+                    monthKey = dateString.substring(0, 7);
+                }
+                // Check if YYYY.MM.DD format (without spaces)
+                else if (dateString.match(/^\d{4}\.\d{2}\.\d{2}/)) {
+                    monthKey = dateString.substring(0, 7).replace('.', '-');
+                }
+                // Check if YYYY. MM. DD format (with spaces)
+                else if (dateString.match(/^\d{4}\.\s*\d{2}\.\s*\d{2}/)) {
+                    const parts = dateString.split('.');
+                    const y = parts[0].trim();
+                    const m = parts[1].trim();
+                    monthKey = `${y}-${m}`;
+                }
+                // Excel serial date
                 else if (typeof dateStr === 'number') {
                     const dateObj = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
                     const y = dateObj.getFullYear();
@@ -71,6 +85,8 @@ const EwhaChart = ({ data }) => {
             }))
             .sort((a, b) => a.month.localeCompare(b.month));
     }, [data]);
+
+
 
     const frequencyData = useMemo(() => {
         if (!data || data.length === 0) return [];
@@ -162,27 +178,10 @@ const EwhaChart = ({ data }) => {
         }
     };
 
-    const renderPayloadLabel = (dataKey, textColor = '#fff') => (props) => {
-        const { x, y, width, height, payload } = props;
-        const value = payload && payload[dataKey];
-        if (!value || value === 0) return null;
 
-        return (
-            <text x={x + width / 2} y={y + height / 2} fill={textColor} textAnchor="middle" dominantBaseline="middle" fontSize={10}>
-                {value}
-            </text>
-        );
-    };
 
-    const renderCustomTopLabel = (props) => {
-        const { x, y, width, height, value } = props;
-        if (!value || value === 0) return null;
-        return (
-            <text x={x + width / 2} y={y - 5} fill="#333" textAnchor="middle" fontSize={11}>
-                {value}
-            </text>
-        );
-    };
+
+
     if (!data || data.length === 0) {
         return (
             <div className="chart-container" style={{ textAlign: 'center', padding: '50px' }}>
@@ -199,7 +198,7 @@ const EwhaChart = ({ data }) => {
                 <button className={`tab-btn ${chartType === 'monthly' ? 'active' : ''}`} onClick={() => setChartType('monthly')}>월별 신청</button>
                 <button className={`tab-btn ${chartType === 'actual' ? 'active' : ''}`} onClick={() => setChartType('actual')}>실제 진행/노쇼</button>
                 <button className={`tab-btn ${chartType === 'frequency' ? 'active' : ''}`} onClick={() => setChartType('frequency')}>학생 빈도</button>
-                <button className={`tab-btn ${chartType === 'college' ? 'active' : ''}`} onClick={() => setChartType('college')}>단과대 비율</button>
+                <button className={`tab-btn ${chartType === 'college' ? 'active' : ''}`} onClick={() => setChartType('college')}>단과대 신청 비율</button>
                 <button className={`tab-btn ${chartType === 'consultant' ? 'active' : ''}`} onClick={() => setChartType('consultant')}>컨설턴트 실적</button>
             </div>
 
@@ -217,7 +216,9 @@ const EwhaChart = ({ data }) => {
                                         <YAxis />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="count" name="신청 건수" fill={COLORS[0]} radius={[4, 4, 0, 0]} label={renderCustomTopLabel} />
+                                        <Bar dataKey="count" name="신청 건수" fill={COLORS[0]} radius={[4, 4, 0, 0]}>
+                                            <LabelList dataKey="count" position="top" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -225,7 +226,7 @@ const EwhaChart = ({ data }) => {
 
                         {/* 2. Actual vs NoShow */}
                         <div style={{ background: '#fff', borderRadius: '12px', padding: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                            <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>실제 진행 및 불참/노쇼</h4>
+                            <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>실제 진행 및 불참/노쇼(컨설팅일자 기준)</h4>
                             <div style={{ height: '300px' }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={actualStatsData}>
@@ -234,12 +235,18 @@ const EwhaChart = ({ data }) => {
                                         <YAxis />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} label={renderPayloadLabel('actual')} />
-                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]} label={renderPayloadLabel('noShow')} />
+                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR}>
+                                            <LabelList dataKey="actual" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
+                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]}>
+                                            <LabelList dataKey="noShow" position="top" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
+
+
 
                         {/* 3. Frequency */}
                         <div style={{ background: '#fff', borderRadius: '12px', padding: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
@@ -252,9 +259,15 @@ const EwhaChart = ({ data }) => {
                                         <YAxis />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="count1" name="1회 이용" stackId="a" fill="#81C784" label={renderPayloadLabel('count1')} />
-                                        <Bar dataKey="count2" name="2회 이용" stackId="a" fill="#4CAF60" label={renderPayloadLabel('count2')} />
-                                        <Bar dataKey="count3" name="3회 이상" stackId="a" fill="#0D5F34" radius={[4, 4, 0, 0]} label={renderPayloadLabel('count3')} />
+                                        <Bar dataKey="count1" name="1회 이용" stackId="a" fill="#81C784">
+                                            <LabelList dataKey="count1" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
+                                        <Bar dataKey="count2" name="2회 이용" stackId="a" fill="#4CAF60">
+                                            <LabelList dataKey="count2" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
+                                        <Bar dataKey="count3" name="3회 이상" stackId="a" fill="#0D5F34" radius={[4, 4, 0, 0]}>
+                                            <LabelList dataKey="count3" position="top" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -297,8 +310,12 @@ const EwhaChart = ({ data }) => {
                                         <YAxis dataKey="name" type="category" width={100} />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
-                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} label={renderPayloadLabel('actual')} />
-                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[0, 4, 4, 0]} label={renderPayloadLabel('noShow')} />
+                                        <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR}>
+                                            <LabelList dataKey="actual" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
+                                        <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[0, 4, 4, 0]}>
+                                            <LabelList dataKey="noShow" position="right" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                        </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -313,79 +330,102 @@ const EwhaChart = ({ data }) => {
                     </div>
                 </>
             ) : (
-                <div className="chart-display-area" style={{ height: '500px', background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        {chartType === 'monthly' && (
-                            <BarChart data={statsData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="month" />
-                                <YAxis />
-                                <Tooltip cursor={{ fill: '#f5f5f5' }} />
-                                <Legend />
-                                <Bar dataKey="count" name="신청 건수" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        )}
-                        {chartType === 'actual' && (
-                            <BarChart data={actualStatsData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="month" />
-                                <YAxis />
-                                <Tooltip cursor={{ fill: '#f5f5f5' }} />
-                                <Legend />
-                                <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} />
-                                <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        )}
-                        {chartType === 'frequency' && (
-                            <BarChart data={frequencyData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="month" />
-                                <YAxis />
-                                <Tooltip cursor={{ fill: '#f5f5f5' }} />
-                                <Legend />
-                                <Bar dataKey="count1" name="1회 이용" stackId="a" fill="#81C784" />
-                                <Bar dataKey="count2" name="2회 이용" stackId="a" fill="#4CAF60" />
-                                <Bar dataKey="count3" name="3회 이상" stackId="a" fill="#0D5F34" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        )}
-                        {chartType === 'college' && (
-                            <PieChart>
-                                <Pie
-                                    data={collegeData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={true}
-                                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                                    outerRadius={160}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                >
-                                    {collegeData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        )}
-                        {chartType === 'consultant' && (
-                            <BarChart data={consultantData} layout="vertical" margin={{ left: 40 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                                <XAxis type="number" />
-                                <YAxis dataKey="name" type="category" width={100} />
-                                <Tooltip cursor={{ fill: '#f5f5f5' }} />
-                                <Legend />
-                                <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR} />
-                                <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                        )}
-                    </ResponsiveContainer>
+                <div className="chart-display-area" style={{ height: '500px', minHeight: '500px', background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                    {chartType === 'actual' ? (
+                        <div style={{ height: '100%' }}>
+                            <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>실제 진행 및 불참/노쇼(컨설팅일자 기준)</h4>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={actualStatsData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="month" />
+                                    <YAxis />
+                                    <Tooltip cursor={{ fill: '#f5f5f5' }} />
+                                    <Legend />
+                                    <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR}>
+                                        <LabelList dataKey="actual" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                    <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]}>
+                                        <LabelList dataKey="noShow" position="top" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            {chartType === 'monthly' && (
+                                <BarChart data={statsData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="month" />
+                                    <YAxis />
+                                    <Tooltip cursor={{ fill: '#f5f5f5' }} />
+                                    <Legend />
+                                    <Bar dataKey="count" name="신청 건수" fill={COLORS[0]} radius={[4, 4, 0, 0]}>
+                                        <LabelList dataKey="count" position="top" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                </BarChart>
+                            )}
+                            {chartType === 'frequency' && (
+                                <BarChart data={frequencyData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="month" />
+                                    <YAxis />
+                                    <Tooltip cursor={{ fill: '#f5f5f5' }} />
+                                    <Legend />
+                                    <Bar dataKey="count1" name="1회 이용" stackId="a" fill="#81C784">
+                                        <LabelList dataKey="count1" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                    <Bar dataKey="count2" name="2회 이용" stackId="a" fill="#4CAF60">
+                                        <LabelList dataKey="count2" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                    <Bar dataKey="count3" name="3회 이상" stackId="a" fill="#0D5F34" radius={[4, 4, 0, 0]}>
+                                        <LabelList dataKey="count3" position="top" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                </BarChart>
+                            )}
+                            {chartType === 'college' && (
+                                <PieChart>
+                                    <Pie
+                                        data={collegeData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={true}
+                                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                        outerRadius={160}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                    >
+                                        {collegeData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            )}
+                            {chartType === 'consultant' && (
+                                <BarChart data={consultantData} layout="vertical" margin={{ left: 40 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                                    <XAxis type="number" />
+                                    <YAxis dataKey="name" type="category" width={100} />
+                                    <Tooltip cursor={{ fill: '#f5f5f5' }} />
+                                    <Legend />
+                                    <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR}>
+                                        <LabelList dataKey="actual" position="inside" fill="#fff" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                    <Bar dataKey="noShow" name="불참/노쇼" stackId="a" fill={NO_SHOW_COLOR} radius={[0, 4, 4, 0]}>
+                                        <LabelList dataKey="noShow" position="right" fill="#333" fontSize={11} fontWeight="bold" formatter={(val) => val > 0 ? val : ''} />
+                                    </Bar>
+                                </BarChart>
+                            )}
+                        </ResponsiveContainer>
+                    )}
                 </div>
-            )}
+            )
+            }
 
             <div style={{ textAlign: 'center', marginTop: '10px', color: '#666', fontSize: '0.9rem' }}>
                 * 차트에 마우스를 올리면 상세 수치를 확인할 수 있습니다.
             </div>
-        </div>
+        </div >
     );
 };
 

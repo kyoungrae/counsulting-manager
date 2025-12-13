@@ -87,20 +87,17 @@ const EwhaGrid = ({ title }) => {
     };
 
     // Columns Configuration
+    // Columns Configuration
     const jobColumns = [
         { label: 'No', key: 'no' },
-        { label: '신청일', key: 'date' },
+        { label: '컨설팅일자', key: 'date' },
         { label: '대학', key: 'college' },
         { label: '학과', key: 'dept' },
-        { label: '전공', key: 'major' },
         { label: '학년', key: 'grade' },
         { label: '학번', key: 'studentId' },
         { label: '이름', key: 'name' },
-        { label: '연락처', key: 'phone' },
         { label: '상담구분', key: 'type' },
-        { label: '요청내용', key: 'request' },
-        { label: '컨설턴트', key: 'consultant' },
-        { label: '완료일자', key: 'completeDate' },
+        { label: '상담사', key: 'consultant' },
         { label: '답변상태', key: 'status' }
     ];
 
@@ -145,9 +142,10 @@ const EwhaGrid = ({ title }) => {
                 '답변상태': item.status
             }));
             wscols = [
-                { wch: 5 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 },
-                { wch: 5 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 25 },
-                { wch: 40 }, { wch: 15 }, { wch: 20 }, { wch: 10 }
+                { wch: 5 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+                { wch: 15 }, { wch: 5 }, { wch: 10 }, { wch: 10 },
+                { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 10 },
+                { wch: 12 }, { wch: 10 }
             ];
         } else {
             // Jinro Data Export
@@ -168,9 +166,10 @@ const EwhaGrid = ({ title }) => {
                 '상담상태': item.state
             }));
             wscols = [
-                { wch: 5 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 8 },
-                { wch: 5 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 },
-                { wch: 15 }, { wch: 20 }, { wch: 8 }, { wch: 8 }
+                { wch: 5 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+                { wch: 10 }, { wch: 5 }, { wch: 10 }, { wch: 10 },
+                { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+                { wch: 8 }, { wch: 10 }
             ];
         }
 
@@ -214,7 +213,15 @@ const EwhaGrid = ({ title }) => {
             }
 
             if (excelHeaders.length > 0) {
-                const requiredHeaders = currentColumns.map(col => col.label);
+                let requiredHeaders = [];
+                if (isJob) {
+                    // Excel Headers for Job
+                    requiredHeaders = ['No', '신청일', '대학', '학과', '학년', '학번', '이름', '상담구분', '컨설턴트', '답변상태'];
+                } else {
+                    // Excel Headers for Jinro (Career)
+                    requiredHeaders = ['No', '신청일', '대학', '학과', '학적', '학년', '학번', '이름', '연락처', '상담분류', '상담사', '컨설팅일자', '참석여부', '상담상태'];
+                }
+
                 const headersToValidate = requiredHeaders.filter(h => h !== 'No');
                 const missingHeaders = headersToValidate.filter(required => !excelHeaders.includes(required));
 
@@ -226,46 +233,121 @@ const EwhaGrid = ({ title }) => {
 
             // Map data based on current view (Jinro vs Job)
             // Assuming Excel headers match the Korean labels
+            // Map data based on current view (Jinro vs Job)
+            // Assuming Excel headers match the Korean labels
             if (isJob) {
                 const mappedData = jsonData
-                    .map((item, index) => ({
-                        id: index,
-                        no: item['No'] || item['no'] || index + 1,
-                        date: item['신청일'] || '',
-                        college: item['대학'] || '',
-                        dept: item['학과'] || '',
-                        major: item['전공'] || '',
-                        grade: item['학년'] || '',
-                        studentId: item['학번'] || '',
-                        name: item['이름'] || '',
-                        phone: item['연락처'] || '',
-                        type: item['상담구분'] || '',
-                        request: item['요청내용'] || '',
-                        consultant: item['컨설턴트'] || '',
-                        completeDate: item['완료일자'] || '',
-                        status: item['답변상태'] || ''
-                    }))
+                    .map((item, index) => {
+                        let row = {
+                            id: index,
+                            no: item['No'] || item['no'] || index + 1,
+                            date: item['신청일'] || '',
+                            college: item['대학'] || '',
+                            dept: item['학과'] || '',
+                            major: item['전공'] || '',
+                            grade: item['학년'] || '',
+                            studentId: item['학번'] || '',
+                            name: item['이름'] || '',
+                            phone: item['연락처'] || '',
+                            type: item['상담구분'] || '',
+                            request: item['요청내용'] || '',
+                            consultant: item['컨설턴트'] || '',
+                            completeDate: item['완료일자'] || '',
+                            status: item['답변상태'] || ''
+                        };
+
+                        // Heuristic Fix for Shifted Data (Missing Grade/Type columns)
+                        // If grade has Student ID format AND name has Phone format
+                        const studentIdPattern = /^[A-Za-z0-9]{5,}$/; // At least 5 chars alphanumeric
+                        const phonePattern = /^010[-.]?\d{4}[-.]?\d{4}$/; // 010 phone format
+
+                        // Check if grade holds StudentID and name holds Phone (Column shift)
+                        // Case: Grade is missing, so StudentID shifted to Grade. Name shifted to StudentID. Phone shifted to Name.
+                        if (row.grade && String(row.grade).match(studentIdPattern) && String(row.grade).length > 1 &&
+                            row.name && String(row.name).match(phonePattern)) {
+
+                            const realStudentId = row.grade;
+                            const realName = row.studentId;
+                            const realPhone = row.name;
+                            const realRequest = row.phone;
+
+                            row.grade = ''; // Missing grade
+                            row.studentId = realStudentId;
+                            row.name = realName;
+                            row.phone = realPhone;
+
+                            // Simple fix for the main columns first
+                            row.request = realRequest;
+                            row.type = ''; // Missing type
+                        } else if (row.grade && String(row.grade).match(studentIdPattern) && String(row.grade).length > 1 &&
+                            row.studentId && !String(row.studentId).match(/^[0-9]+$/) &&
+                            (!row.phone || !String(row.phone).match(phonePattern))) {
+
+                            const realStudentId = row.grade;
+                            const realName = row.studentId;
+                            const realPhone = row.name;
+
+                            row.grade = '';
+                            row.studentId = realStudentId;
+                            row.name = realName;
+                            row.phone = realPhone;
+                            // Shift others if necessary
+                            if (!row.type && row.phone) {
+                                row.request = row.phone;
+                            }
+                        }
+
+                        return row;
+                    })
                     .filter(item => item.studentId && item.name); // Filter out empty rows
                 setJobList(mappedData);
             } else {
                 const mappedData = jsonData
-                    .map((item, index) => ({
-                        id: index,
-                        no: item['No'] || item['no'] || index + 1,
-                        date: item['신청일'] || '',
-                        college: item['대학'] || '',
-                        dept: item['학과'] || '',
-                        status: item['학적'] || '', // status = 학적
-                        grade: item['학년'] || '',
-                        studentId: item['학번'] || '',
-                        name: item['이름'] || '',
-                        phone: item['연락처'] || '',
-                        type: item['상담분류'] || '',
-                        consultant: item['상담사'] || '',
-                        consultDate: item['컨설팅일자'] || '',
-                        attend: item['참석여부'] || '',
-                        state: item['상담상태'] || '' // state = 상담상태
-                    }))
+                    .map((item, index) => {
+                        let row = {
+                            id: index,
+                            no: item['No'] || item['no'] || index + 1,
+                            date: item['신청일'] || '',
+                            college: item['대학'] || '',
+                            dept: item['학과'] || '',
+                            status: item['학적'] || '',
+                            grade: item['학년'] || '',
+                            studentId: item['학번'] || '',
+                            name: item['이름'] || '',
+                            phone: item['연락처'] || '',
+                            type: item['상담분류'] || '',
+                            consultant: item['상담사'] || '',
+                            consultDate: item['컨설팅일자'] || '',
+                            attend: item['참석여부'] || '',
+                            state: item['상담상태'] || ''
+                        };
+
+                        // Heuristic Fix for Shifted Data (Similar logic for Jinro)
+                        const studentIdPattern = /^[A-Za-z0-9]{5,}$/;
+                        const phonePattern = /^010[-.]?\d{4}[-.]?\d{4}$/;
+
+                        if (row.grade && String(row.grade).match(studentIdPattern) && String(row.grade).length > 1 &&
+                            row.name && String(row.name).match(phonePattern)) {
+
+                            const realStudentId = row.grade;
+                            const realName = row.studentId;
+                            const realPhone = row.name;
+                            // const realConsultant = row.type; // Col 11 shifted to 10?
+
+                            row.grade = '';
+                            row.studentId = realStudentId;
+                            row.name = realName;
+                            row.phone = realPhone;
+
+                            // Fix subsequent shifts if possible (heuristics tricky here)
+                            // Standard: Type(10), Consultant(11)
+                            // Shifted: Name(8) has Phone(9). Phone(9) has Type(10). Type(10) has Consultant(11).
+                            const realType = row.phone; // Phone field held Type?
+                            row.type = realType;
+                        }
+
+                        return row;
+                    })
                     .filter(item => item.studentId && item.name); // Filter out empty rows
                 setJinroList(mappedData);
             }
@@ -407,15 +489,11 @@ const EwhaGrid = ({ title }) => {
                                         <div className="col-center">{item.date}</div>
                                         <div className="col-center">{item.college}</div>
                                         <div className="col-center">{item.dept}</div>
-                                        <div className="col-center">{item.major}</div>
                                         <div className="col-center">{item.grade}</div>
                                         <div className="col-center">{item.studentId}</div>
                                         <div className="col-center">{item.name}</div>
-                                        <div className="col-center">{item.phone}</div>
-                                        <div className="col-left">{item.type}</div>
-                                        <div className="col-left text-truncate" title={item.request}>{item.request}</div>
+                                        <div className="col-center">{item.type}</div>
                                         <div className="col-center">{item.consultant}</div>
-                                        <div className="col-center">{item.completeDate}</div>
                                         <div className="col-center">{item.status}</div>
                                     </>
                                 ) : (
@@ -547,7 +625,8 @@ const MonthlyStatsView = ({ data }) => {
         setModalConfig({
             show: true,
             title: `${month} - ${countType >= 3 ? '3회 이상' : countType + '회'} 이용자 상세`,
-            data: targetStudents
+            data: targetStudents,
+            type: 'frequency'
         });
     };
 
@@ -643,11 +722,13 @@ const MonthlyStatsView = ({ data }) => {
 
         setModalConfig({
             show: true,
-            title: `${month} - ${type === 'actual' ? '실제 진행' : '불참/노쇼'} 상세 내역`,
+            title: `${month} - ${type === 'actual' ? '실제 진행' : '불참/노쇼'} 상세 내역 (컨설팅일자 기준)`,
             data: targetStudents,
             type: type
         });
     };
+
+
 
     const handleConsultantStatsClick = (consultant, type) => {
         if (!data || data.length === 0) return;
@@ -955,16 +1036,16 @@ const MonthlyStatsView = ({ data }) => {
 
             if (dateStr) {
                 const dateString = String(dateStr).trim();
-                // Check if YYYY-MM
+                // Check if YYYY-MM format
                 if (dateString.match(/^\d{4}-\d{2}/)) {
                     monthKey = dateString.substring(0, 7);
                 }
-                // Check if YYYY.MM.DD
+                // Check if YYYY.MM.DD format (without spaces)
                 else if (dateString.match(/^\d{4}\.\d{2}\.\d{2}/)) {
                     monthKey = dateString.substring(0, 7).replace('.', '-');
                 }
-                // Check if YYYY. MM. DD (spaces)
-                else if (dateString.match(/^\d{4}\.\s\d{2}\.\s\d{2}/)) {
+                // Check if YYYY. MM. DD format (with spaces)
+                else if (dateString.match(/^\d{4}\.\s+\d{2}\.\s+\d{2}/)) {
                     const parts = dateString.split('.');
                     const y = parts[0].trim();
                     const m = parts[1].trim();
@@ -976,6 +1057,9 @@ const MonthlyStatsView = ({ data }) => {
                     const y = dateObj.getFullYear();
                     const m = String(dateObj.getMonth() + 1).padStart(2, '0');
                     monthKey = `${y}-${m}`;
+                } else {
+                    // Debug: Log unrecognized date formats
+                    console.log('Unrecognized date format:', dateString, 'Type:', typeof dateStr);
                 }
             }
 
@@ -1020,6 +1104,9 @@ const MonthlyStatsView = ({ data }) => {
 
         return result;
     }, [data, studentFilter, sortConfig, statsSubTab]);
+
+
+
 
     const collegeStatsData = React.useMemo(() => {
         if (!data || data.length === 0) return [];
@@ -1410,7 +1497,7 @@ const MonthlyStatsView = ({ data }) => {
             {
                 statsSubTab === 'actual' && (
                     <>
-                        <h4 style={{ padding: '0 1rem', marginTop: '1.5rem', color: '#666' }}>실제 진행 및 불참/노쇼 현황</h4>
+                        <h4 style={{ padding: '0 1rem', marginTop: '1.5rem', color: '#666' }}>실제 진행 및 불참/노쇼 현황 (컨설팅일자 기준)</h4>
                         <div className="grid-wrapper" style={{ overflowX: 'auto' }}>
                             <div className="stats-freq-grid-header" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                                 <span onClick={() => requestSort('month')} style={{ cursor: 'pointer' }}>년-월{getSortIndicator('month')}</span>
@@ -1439,9 +1526,11 @@ const MonthlyStatsView = ({ data }) => {
                         <div className="button-container" style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
                             <button className="ewha-btn" onClick={handleDownloadActual} disabled={actualStatsData.length === 0}>
                                 <Download size={18} />
-                                엑셀 다운로드
+                                컨설팅일자 기준 엑셀 다운로드
                             </button>
                         </div>
+
+
                     </>
                 )
             }
@@ -1532,7 +1621,7 @@ const MonthlyStatsView = ({ data }) => {
                                 <div className={`stats-name-grid-header ${modalConfig.type === 'noShow' ? 'stats-penalty-grid-header' : ''}`}
                                     style={
                                         modalConfig.type === 'noShow' ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr 2fr' } :
-                                            (modalConfig.type === 'actual' || modalConfig.type === 'total') ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr' } :
+                                            (modalConfig.type === 'actual' || modalConfig.type === 'total' || modalConfig.type === 'frequency') ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr' } :
                                                 { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr' }
                                     }>
                                     <span>이름</span>
@@ -1541,14 +1630,14 @@ const MonthlyStatsView = ({ data }) => {
                                     <span>학과</span>
                                     <span>학년</span>
                                     <span>이용 횟수</span>
-                                    {(modalConfig.type === 'noShow' || modalConfig.type === 'actual' || modalConfig.type === 'total') && <span>신청일</span>}
+                                    {(modalConfig.type === 'noShow' || modalConfig.type === 'actual' || modalConfig.type === 'total' || modalConfig.type === 'frequency') && <span>신청일</span>}
                                     {modalConfig.type === 'noShow' && <span>신청제한 기간</span>}
                                 </div>
                                 {modalConfig.data.length > 0 ? modalConfig.data.map((row, idx) => (
                                     <div key={idx} className={`stats-name-grid-row ${modalConfig.type === 'noShow' ? 'stats-penalty-grid-row' : ''}`}
                                         style={
                                             modalConfig.type === 'noShow' ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr 2fr' } :
-                                                (modalConfig.type === 'actual' || modalConfig.type === 'total') ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr' } :
+                                                (modalConfig.type === 'actual' || modalConfig.type === 'total' || modalConfig.type === 'frequency') ? { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1.5fr' } :
                                                     { gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr' }
                                         }>
                                         <div className="col-center">{row.name}</div>
@@ -1557,7 +1646,7 @@ const MonthlyStatsView = ({ data }) => {
                                         <div className="col-center">{row.dept}</div>
                                         <div className="col-center">{row.grade}</div>
                                         <div className="col-center">{row.count}회</div>
-                                        {(modalConfig.type === 'noShow' || modalConfig.type === 'actual' || modalConfig.type === 'total') && <div className="col-center">{row.date}</div>}
+                                        {(modalConfig.type === 'noShow' || modalConfig.type === 'actual' || modalConfig.type === 'total' || modalConfig.type === 'frequency') && <div className="col-center">{row.date}</div>}
                                         {modalConfig.type === 'noShow' && <div className="col-center" style={{ color: '#e74c3c', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{row.penalty}</div>}
                                     </div>
                                 )) : (
