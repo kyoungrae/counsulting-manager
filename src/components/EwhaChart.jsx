@@ -10,8 +10,40 @@ const COLORS = ['#00462A', '#0D5F34', '#1A7A40', '#2E934E', '#4CAF60', '#81C784'
 const NO_SHOW_COLOR = '#E74C3C';
 const ACTUAL_COLOR = '#00462A';
 
+const RADIAN = Math.PI / 180;
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
+    if (percent < 0.005) return null;
+
+    const radius = outerRadius * 1.05;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (outerRadius + 0) * cos;
+    const sy = cy + (outerRadius + 0) * sin;
+    const mx = cx + (outerRadius + 30) * cos;
+    const my = cy + (outerRadius + 30) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
+
+    return (
+        <g>
+            <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke="#333" fill="none" opacity={0.5} />
+            <circle cx={sx} cy={sy} r={2} fill="#333" fillOpacity={0.5} stroke="none" />
+            <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey} dy={4} textAnchor={textAnchor} fill="#333" fontSize={11} fontWeight="bold">
+                {`${name} ${(percent * 100).toFixed(0)}%`}
+            </text>
+        </g>
+    );
+};
+
 const EwhaChart = ({ data }) => {
     const [chartType, setChartType] = useState('all'); // all, monthly, actual, frequency, college, consultant
+
+    // Helper for College Percent
+    const getTotalCount = (dataset) => dataset.reduce((acc, curr) => acc + (curr.value || curr.count || 0), 0);
 
     // Aggregation Logic (Similar to MonthlyStatsView)
     const statsData = useMemo(() => {
@@ -229,7 +261,7 @@ const EwhaChart = ({ data }) => {
                             <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>실제 진행 및 불참/노쇼(컨설팅일자 기준)</h4>
                             <div style={{ height: '300px' }}>
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={actualStatsData}>
+                                    <BarChart data={actualStatsData} margin={{ top: 40, right: 30, left: 20, bottom: 30 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                         <XAxis dataKey="month" />
                                         <YAxis />
@@ -276,38 +308,53 @@ const EwhaChart = ({ data }) => {
                         {/* 4. College */}
                         <div style={{ background: '#fff', borderRadius: '12px', padding: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                             <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>단과대별 비율</h4>
-                            <div style={{ height: '300px' }}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={collegeData}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={true}
-                                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                                            outerRadius={100}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                        >
-                                            {collegeData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                            <div style={{ height: '300px', display: 'flex' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={collegeData}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                label={renderCustomizedLabel}
+                                                outerRadius={70}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                            >
+                                                {collegeData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div style={{ width: '160px', paddingLeft: '10px', fontSize: '11px' }}>
+                                    {collegeData.map((entry, index) => (
+                                        <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                                            <div style={{ width: '10px', height: '10px', backgroundColor: COLORS[index % COLORS.length], marginRight: '6px', borderRadius: '2px', flexShrink: 0 }}></div>
+                                            <div style={{ color: '#333' }}>
+                                                {entry.name} <span style={{ fontWeight: 'bold' }}>{entry.value}건</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #eee', fontWeight: 'bold', color: '#333' }}>
+                                        합계: {getTotalCount(collegeData)}건 (100%)
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         {/* 5. Consultant (Full Width) */}
                         <div style={{ gridColumn: '1 / -1', background: '#fff', borderRadius: '12px', padding: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                             <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>컨설턴트별 실적</h4>
-                            <div style={{ height: '400px' }}>
+                            <div style={{ height: '600px' }}>
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={consultantData} layout="vertical" margin={{ left: 40 }}>
+                                    <BarChart data={consultantData} layout="vertical" margin={{ left: 50, right: 30, top: 10, bottom: 10 }}>
                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                                         <XAxis type="number" />
-                                        <YAxis dataKey="name" type="category" width={100} />
+                                        <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11 }} interval={0} />
                                         <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                         <Legend />
                                         <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR}>
@@ -322,20 +369,15 @@ const EwhaChart = ({ data }) => {
                         </div>
                     </div>
 
-                    <div className="button-container" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <button className="ewha-btn" onClick={handleDownloadImage} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0.6rem 1.2rem', fontSize: '1rem' }}>
-                            <Download size={18} />
-                            이미지 저장
-                        </button>
-                    </div>
+
                 </>
             ) : (
-                <div className="chart-display-area" style={{ height: '500px', minHeight: '500px', background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                <div className="chart-display-area" style={{ height: '700px', minHeight: '700px', background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
                     {chartType === 'actual' ? (
                         <div style={{ height: '100%' }}>
                             <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>실제 진행 및 불참/노쇼(컨설팅일자 기준)</h4>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={actualStatsData}>
+                                <BarChart data={actualStatsData} margin={{ top: 40, right: 30, left: 20, bottom: 30 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                     <XAxis dataKey="month" />
                                     <YAxis />
@@ -383,29 +425,54 @@ const EwhaChart = ({ data }) => {
                                 </BarChart>
                             )}
                             {chartType === 'college' && (
-                                <PieChart>
-                                    <Pie
-                                        data={collegeData}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={true}
-                                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                                        outerRadius={160}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                    >
-                                        {collegeData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
+                                <div style={{ display: 'flex', height: '100%', alignItems: 'center' }}>
+                                    <div style={{ flex: 1, height: '100%' }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={collegeData}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    labelLine={false}
+                                                    label={renderCustomizedLabel}
+                                                    outerRadius={130}
+                                                    fill="#8884d8"
+                                                    dataKey="value"
+                                                >
+                                                    {collegeData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div style={{ width: '280px', height: '95%', borderLeft: '1px solid #eee', paddingLeft: '20px', marginLeft: '10px' }}>
+                                        <h5 style={{ marginBottom: '15px', paddingTop: '10px', color: '#333' }}>상세 데이터 목록</h5>
+                                        {collegeData.map((entry, index) => {
+                                            const total = getTotalCount(collegeData);
+                                            const percent = total > 0 ? (entry.value / total * 100).toFixed(1) : 0;
+                                            return (
+                                                <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '10px', fontSize: '0.9rem' }}>
+                                                    <div style={{ width: '12px', height: '12px', backgroundColor: COLORS[index % COLORS.length], marginRight: '10px', borderRadius: '2px', flexShrink: 0 }}></div>
+                                                    <div style={{ flex: 1, marginRight: '10px', wordBreak: 'keep-all' }}>{entry.name}</div>
+                                                    <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{entry.value}건 <span style={{ color: '#666', fontWeight: 'normal' }}>({percent}%)</span></div>
+                                                </div>
+                                            );
+                                        })}
+                                        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #ddd', display: 'flex', alignItems: 'center', fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                            <div style={{ width: '18px', marginRight: '12px' }}></div>
+                                            <div style={{ flex: 1 }}>총계</div>
+                                            <div>{getTotalCount(collegeData)}건 (100%)</div>
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                             {chartType === 'consultant' && (
-                                <BarChart data={consultantData} layout="vertical" margin={{ left: 40 }}>
+                                <BarChart data={consultantData} layout="vertical" margin={{ left: 50, right: 30, top: 10, bottom: 10 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                                     <XAxis type="number" />
-                                    <YAxis dataKey="name" type="category" width={100} />
+                                    <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11 }} interval={0} />
                                     <Tooltip cursor={{ fill: '#f5f5f5' }} />
                                     <Legend />
                                     <Bar dataKey="actual" name="실제 진행" stackId="a" fill={ACTUAL_COLOR}>
@@ -421,6 +488,13 @@ const EwhaChart = ({ data }) => {
                 </div>
             )
             }
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button className="ewha-btn" onClick={handleDownloadImage}>
+                    <Download size={16} />
+                    이미지 다운로드
+                </button>
+            </div>
 
             <div style={{ textAlign: 'center', marginTop: '10px', color: '#666', fontSize: '0.9rem' }}>
                 * 차트에 마우스를 올리면 상세 수치를 확인할 수 있습니다.

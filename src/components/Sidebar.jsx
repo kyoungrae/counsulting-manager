@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, GraduationCap, Briefcase } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GraduationCap, Users, FileText, BarChart2, AlertCircle } from 'lucide-react';
 import './Sidebar.css';
 
 const Sidebar = ({ activeMenu, onMenuClick }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const menuItems = [
-        { id: 'jinro', label: '진로', icon: <GraduationCap size={20} /> },
-        { id: 'job', label: '취업', icon: <Briefcase size={20} /> }
+        { id: 'career-dev', label: '진로개발', icon: <GraduationCap size={20} /> },
+        { id: 'interview', label: '서류면접', icon: <Users size={20} /> },
+        { id: 'correction', label: '서면첨삭', icon: <FileText size={20} /> },
+        { id: 'stats', label: '통합통계', icon: <BarChart2 size={20} /> },
+        { id: 'restriction', label: '신청 제한', icon: <AlertCircle size={20} /> }
     ];
 
     const toggleSidebar = () => {

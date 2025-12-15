@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar'
 import './App.css'
 
 function App() {
-  const [activeMenu, setActiveMenu] = useState('진로');
+  const [activeMenu, setActiveMenu] = useState('진로개발');
 
   return (
     <div className="app-container">
