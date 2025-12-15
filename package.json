@@ -94,7 +94,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "이화여대 컨설팅 분석"
+      "shortcutName": "이화여대 컨설팅 분석",
+      "include": "build/installer.nsh"
     }
   }
 }
