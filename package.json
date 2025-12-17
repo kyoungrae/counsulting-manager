@@ -2,7 +2,7 @@
   "name": "ewha-consulting-analytics",
   "productName": "이화여대 컨설팅 분석",
   "private": true,
-  "version": "1.0.0",
+  "version": "4.0.0",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
   "dependencies": {
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.556.0",
+    "mammoth": "^1.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^3.5.1",

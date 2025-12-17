@@ -683,6 +683,47 @@
     color: var(--ewha-green);
 }
 
-.clickable-cell:hover {
+/* Pre-Survey Table Styles */
+.pre-survey-table-container {
+    overflow-x: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 70, 42, 0.08);
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+
+.pre-survey-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1500px;
+    /* Ensure horizontal scroll for many columns */
+}
+
+.pre-survey-table th,
+.pre-survey-table td {
+    border: 1px solid #e0e0e0;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.pre-survey-table th {
+    background-color: var(--ewha-green);
+    color: white;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.pre-survey-table thead tr:first-child th {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.pre-survey-table tbody tr:hover {
+    background-color: #F0F6F4;
+}
+
+.q-check {
+    color: var(--ewha-green);
     font-weight: bold;
 }

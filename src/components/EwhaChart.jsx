@@ -11,12 +11,8 @@ const NO_SHOW_COLOR = '#E74C3C';
 const ACTUAL_COLOR = '#00462A';
 
 const RADIAN = Math.PI / 180;
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
+const renderCustomizedLabel = ({ cx, cy, midAngle, outerRadius, percent }) => {
     if (percent < 0.005) return null;
-
-    const radius = outerRadius * 1.05;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     const sin = Math.sin(-RADIAN * midAngle);
     const cos = Math.cos(-RADIAN * midAngle);

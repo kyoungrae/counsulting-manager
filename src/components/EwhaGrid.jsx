@@ -5,6 +5,7 @@ import './EwhaGrid.css';
 import EwhaChart from './EwhaChart';
 import RestrictionView from './RestrictionView';
 import IntegratedStatsView from './IntegratedStatsView';
+import PreSurvey from './PreSurvey';
 
 const EwhaGrid = ({ title }) => {
     const fileInputRef = useRef(null);
@@ -367,6 +368,9 @@ const EwhaGrid = ({ title }) => {
     }
     if (title === '신청 제한') {
         return <RestrictionView careerList={careerList} interviewList={interviewList} correctionList={correctionList} />;
+    }
+    if (title === '사전 설문') {
+        return <PreSurvey />;
     }
 
     return (

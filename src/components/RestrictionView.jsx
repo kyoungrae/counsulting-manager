@@ -111,7 +111,6 @@ const RestrictionView = ({ careerList, interviewList, correctionList }) => {
         const processPenalty = (item, source) => {
             if (item.attend !== '불참') return;
 
-            const sid = item.studentId;
             let baseDateVal = item.consultDate || item.date;
             let baseDate = null;
 
@@ -126,7 +125,6 @@ const RestrictionView = ({ careerList, interviewList, correctionList }) => {
             let reason = '불참';
 
             if (baseDate && !isNaN(baseDate.getTime())) {
-                const pStart = new Date(baseDate);
                 const pEnd = new Date(baseDate);
                 pEnd.setDate(pEnd.getDate() + penaltyDays);
 
