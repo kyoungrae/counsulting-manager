@@ -1,0 +1,252 @@
+.satisfaction-match-container {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.upload-section {
+    display: flex;
+    gap: 20px;
+    height: 200px;
+}
+
+.drop-zone {
+    flex: 1;
+    border: 2px dashed #e0e0e0;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #fafafa;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-active {
+    border-color: #00462A;
+    background-color: #f0fdf4;
+}
+
+.upload-icon {
+    color: #00462A;
+    margin-bottom: 12px;
+}
+
+.zone-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.zone-desc {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 16px;
+    background-color: #e8f5e9;
+    border-radius: 20px;
+    color: #00462A;
+    font-size: 0.9rem;
+}
+
+.comparison-results {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.results-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.results-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #333;
+}
+
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background-color: #00462A;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-left: auto;
+    /* Push to right */
+}
+
+.download-btn:hover {
+    background-color: #00331f;
+}
+
+.reset-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background-color: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reset-btn:hover {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.stats-summary {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.filter-checkboxes {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding-left: 16px;
+    margin-left: 16px;
+    border-left: 1px solid #ddd;
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-checkbox input[type="checkbox"],
+.filter-checkbox input[type="radio"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+}
+
+.stat-item {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.stat-item strong {
+    color: #00462A;
+    margin-left: 4px;
+}
+
+.table-container {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comparison-table th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 1px solid #eee;
+}
+
+.comparison-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.comparison-table th.sortable svg {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.comparison-table th.sortable:hover {
+    background-color: #e8f4f0;
+    color: #00462A;
+}
+
+.comparison-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.comparison-table tr:hover {
+    background-color: #f8fcf9;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-match {
+    background-color: #e6fffa;
+    color: #00462A;
+}
+
+.status-mismatch {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.mismatch-cell {
+    color: #c62828;
+    background-color: #fff8f8;
+    font-weight: 500;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #999;
+    gap: 12px;
+}

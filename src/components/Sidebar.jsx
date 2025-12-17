@@ -11,6 +11,7 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
         { id: 'correction', label: '서면첨삭', icon: <FileText size={20} /> },
         { id: 'stats', label: '통합통계', icon: <BarChart2 size={20} /> },
         { id: 'pre-survey', label: '사전 설문', icon: <FileText size={20} /> },
+        { id: 'satisfaction-match', label: '만족도 일치여부', icon: <FileText size={20} /> },
         { id: 'restriction', label: '신청 제한', icon: <AlertCircle size={20} /> }
     ];
 

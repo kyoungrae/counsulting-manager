@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import EwhaGrid from './components/EwhaGrid'
 import Sidebar from './components/Sidebar'
+import SatisfactionMatch from './components/SatisfactionMatch'
 import './App.css'
 
 function App() {
@@ -10,7 +11,11 @@ function App() {
     <div className="app-container">
       <Sidebar activeMenu={activeMenu} onMenuClick={setActiveMenu} />
       <main className="main-content">
-        <EwhaGrid title={activeMenu} />
+        {activeMenu === '만족도 일치여부' ? (
+          <SatisfactionMatch />
+        ) : (
+          <EwhaGrid title={activeMenu} />
+        )}
       </main>
     </div>
   )
