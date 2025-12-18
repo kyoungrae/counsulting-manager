@@ -1,34 +1,14 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import * as mammoth from 'mammoth';
-import { Upload, Download, FileText, Trash2, PieChart as PieChartIcon, List } from 'lucide-react';
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
-    PieChart, Pie, Cell, LabelList
-} from 'recharts';
+import { Upload, Download, FileText, Trash2, List } from 'lucide-react';
 import './EwhaGrid.css';
-
-const COLORS = ['#00462A', '#0D5F34', '#1A7A40', '#2E934E', '#4CAF60', '#81C784', '#A5D6A7', '#C8E6C9'];
-const RADIAN = Math.PI / 180;
-
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-    if (percent < 0.05) return null; // Hide small labels
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    return (
-        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={11} fontWeight="bold">
-            {`${(percent * 100).toFixed(0)}%`}
-        </text>
-    );
-};
 
 const PreSurvey = () => {
     const [surveyData, setSurveyData] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [activeTab, setActiveTab] = useState('list'); // 'list' or 'chart'
+    const [activeTab, setActiveTab] = useState('list'); // 'list' or 'preview'
     const fileInputRef = useRef(null);
 
     // --- Parsing Logic ---
@@ -43,6 +23,7 @@ const PreSurvey = () => {
 
             const extracted = {
                 fileName: file.name,
+                originalHtml: html, // Store original HTML for preview
                 consultDate: '', // Heuristic extraction if possible
                 college: '',
                 dept: '',
@@ -116,19 +97,31 @@ const PreSurvey = () => {
                 const checkKeyword = (keyword, targetField) => {
                     if (!fullText.includes(keyword)) return;
 
-                    const escaped = keyword.replace(/\s+/g, '\\s*').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    // Find the position of the keyword in the text
+                    const keywordIndex = fullText.indexOf(keyword);
+                    if (keywordIndex === -1) return;
 
-                    // Regex for UNCHECKED box (□, \u25A1, \u2610) adjacent to keyword
-                    // We look for the box BEFORE or AFTER the keyword.
-                    const uncheckedRegex = new RegExp(`[□\u25A1\u2610]\\s*${escaped}|${escaped}\\s*[□\u25A1\u2610]`, 'i');
+                    // Extract surrounding text (20 chars before and after the keyword)
+                    const start = Math.max(0, keywordIndex - 20);
+                    const end = Math.min(fullText.length, keywordIndex + keyword.length + 20);
+                    const surroundingText = fullText.substring(start, end);
 
-                    if (uncheckedRegex.test(fullText)) {
-                        // Explicit empty box found -> Unchecked
+                    // Check for unchecked box symbols in the surrounding text
+                    const hasUncheckedBox = /[□\u25A1\u2610]/.test(surroundingText);
+
+                    // Check for checked box symbols in the surrounding text
+                    const hasCheckedBox = /[▣■☑\u25A3\u25A0\u2611]/.test(surroundingText);
+
+                    if (hasUncheckedBox && !hasCheckedBox) {
+                        // Only unchecked box found -> Unchecked
                         return;
-                    } else {
-                        // Keyword is there, but NO empty box.
-                        // Must be checked.
+                    } else if (hasCheckedBox) {
+                        // Checked box found -> Checked
                         extracted[targetField] = '1';
+                    } else if (!hasUncheckedBox && !hasCheckedBox) {
+                        // No box found at all - might be a different format
+                        // Don't mark as checked to be safe
+                        return;
                     }
                 };
 
@@ -220,28 +213,6 @@ const PreSurvey = () => {
                     }
                 }
 
-                // Q3 Job Hope Keys (1-26)
-                // 3-(1) Management Support
-                checkKeyword('인사', 'q3_1'); checkKeyword('교육', 'q3_2'); checkKeyword('재무/회계', 'q3_3');
-                checkKeyword('법무', 'q3_4'); checkKeyword('미디어/홍보', 'q3_5'); checkKeyword('비즈니스전략', 'q3_6');
-                // 3-(2) Mkt/Sales
-                checkKeyword('마케팅', 'q3_7'); checkKeyword('영업', 'q3_8'); checkKeyword('데이터', 'q3_9'); // New Data column in this group? '데이터' appears twice.
-                // 3-(3) Logistics/Purchase
-                checkKeyword('구매', 'q3_10'); checkKeyword('물류', 'q3_11'); checkKeyword('SCM', 'q3_12');
-                // 3-(4) Data (Original)
-                checkKeyword('기획 및 분석', 'q3_13'); if (fullText.includes('빅데이터')) extracted.q3_14 = '1'; // Keyword overlap
-                // 3-(5) Prod/Quality
-                checkKeyword('생산', 'q3_15'); checkKeyword('품질', 'q3_16');
-                // 3-(6) Research
-                checkKeyword('연구개발', 'q3_17'); checkKeyword('엔지니어링', 'q3_18'); checkKeyword('리서치', 'q3_19');
-                // 3-(7) IT
-                checkKeyword('서비스기획', 'q3_20');
-                if (fullText.includes('프론트') || fullText.includes('백앤드')) extracted.q3_21 = '1';
-                checkKeyword('정보보안', 'q3_22');
-                // 3-(8) Other/Design
-                checkKeyword('디자인', 'q3_23'); checkKeyword('사업개발', 'q3_24'); checkKeyword('투자', 'q3_25');
-                // 3-(9) Others
-
                 // Q4 Work Values (1-14)
                 checkKeyword('급여', 'q4_1'); checkKeyword('승진기회', 'q4_2'); checkKeyword('근무환경', 'q4_3'); checkKeyword('근무시간', 'q4_4');
                 checkKeyword('업무량', 'q4_5'); checkKeyword('업무난이도', 'q4_6'); checkKeyword('적은스트레스', 'q4_7'); checkKeyword('전공연관성', 'q4_8');
@@ -267,6 +238,107 @@ const PreSurvey = () => {
                 if (fullText.includes('무엇을')) extracted.q5_4 = findTextAfter('무엇을') || extracted.q5_4; // '무엇을/어떻게'
 
                 if (fullText.includes('기대하는 점')) extracted.q6 = findTextAfter('기대하는 점') || extracted.q6;
+            });
+
+            // --- Q3 Parsing: Category-based approach ---
+            // Find all <p> tags that contain Q3 categories
+            const allParagraphs = tempDiv.querySelectorAll('p');
+
+            // Helper function to check items within a specific paragraph
+            const checkItemsInParagraph = (paragraph, categoryPattern, itemsMap) => {
+                const pText = paragraph.innerText || paragraph.textContent || '';
+
+                // Check if this paragraph belongs to the target category
+                if (!categoryPattern.test(pText)) return;
+
+                // For each item in the map, check if it's checked in this paragraph
+                Object.entries(itemsMap).forEach(([keyword, fieldName]) => {
+                    // Check if keyword exists in this paragraph
+                    if (!pText.includes(keyword)) return;
+
+                    // Create regex to find the checkbox symbol before the keyword
+                    const escaped = keyword.replace(/\s+/g, '\\s*').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+                    // Look for unchecked box (□) adjacent to keyword
+                    const uncheckedRegex = new RegExp(`[□\\u25A1\\u2610]\\s*${escaped}|${escaped}\\s*[□\\u25A1\\u2610]`, 'i');
+
+                    // Look for checked box (▣, ■, ☑) adjacent to keyword
+                    const checkedRegex = new RegExp(`[▣■☑\\u25A3\\u25A0\\u2611]\\s*${escaped}|${escaped}\\s*[▣■☑\\u25A3\\u25A0\\u2611]`, 'i');
+
+                    if (checkedRegex.test(pText)) {
+                        // Explicitly checked
+                        extracted[fieldName] = '1';
+                    } else if (!uncheckedRegex.test(pText)) {
+                        // Keyword exists but no explicit checkbox found - assume checked
+                        // This handles cases where the checkbox might be rendered differently
+                        extracted[fieldName] = '1';
+                    }
+                    // If uncheckedRegex matches, we leave it as '' (unchecked)
+                });
+            };
+
+            allParagraphs.forEach(p => {
+                // 3-(1) Management Support (경영지원)
+                checkItemsInParagraph(p, /\(1\)\s*경영지원/i, {
+                    '인사': 'q3_1',
+                    '교육': 'q3_2',
+                    '재무/회계': 'q3_3',
+                    '법무': 'q3_4',
+                    '미디어/홍보': 'q3_5',
+                    '비즈니스전략': 'q3_6',
+                    '비즈니스 전략': 'q3_6' // Alternative spacing
+                });
+
+                // 3-(2) Marketing/Sales (마케팅/영업)
+                checkItemsInParagraph(p, /\(2\)\s*마케팅.*영업/i, {
+                    '마케팅': 'q3_7',
+                    '영업': 'q3_8',
+                    '데이터': 'q3_9'
+                });
+
+                // 3-(3) Logistics (물류)
+                checkItemsInParagraph(p, /\(3\)\s*물류/i, {
+                    '구매': 'q3_10',
+                    '물류': 'q3_11',
+                    'SCM': 'q3_12'
+                });
+
+                // 3-(4) Data (데이터) - Original category
+                checkItemsInParagraph(p, /\(4\)\s*데이터/i, {
+                    '기획 및 분석': 'q3_13',
+                    '기획및분석': 'q3_13', // No space variant
+                    '빅데이터': 'q3_14'
+                });
+
+                // 3-(5) Production/Quality (생산/품질)
+                checkItemsInParagraph(p, /\(5\)\s*생산.*품질/i, {
+                    '생산': 'q3_15',
+                    '품질': 'q3_16'
+                });
+
+                // 3-(6) Research (연구)
+                checkItemsInParagraph(p, /\(6\)\s*연구/i, {
+                    '연구개발': 'q3_17',
+                    '엔지니어링': 'q3_18',
+                    '리서치': 'q3_19'
+                });
+
+                // 3-(7) IT
+                checkItemsInParagraph(p, /\(7\)\s*IT/i, {
+                    '서비스기획': 'q3_20',
+                    '서비스 기획': 'q3_20',
+                    '프론트': 'q3_21',
+                    '백앤드': 'q3_21',
+                    '프론트/백앤드': 'q3_21',
+                    '정보보안': 'q3_22'
+                });
+
+                // 3-(8) Other (기타)
+                checkItemsInParagraph(p, /\(8\)\s*기타/i, {
+                    '디자인': 'q3_23',
+                    '사업개발': 'q3_24',
+                    '투자': 'q3_25'
+                });
             });
 
             return extracted;
@@ -307,66 +379,6 @@ const PreSurvey = () => {
     const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files.length) processFiles(e.dataTransfer.files); };
 
     const handleClear = () => setSurveyData([]);
-
-    // --- Stats Aggregation ---
-    const chartsData = useMemo(() => {
-        if (surveyData.length === 0) return { q1: [], q2: [], college: [] };
-
-        // Q1 Reasons
-        const q1Counts = [
-            { name: '자기탐색', key: 'q1_1', count: 0 },
-            { name: '진로선택', key: 'q1_2', count: 0 },
-            { name: '취업정보', key: 'q1_3', count: 0 },
-            { name: '취업전략', key: 'q1_4', count: 0 },
-            { name: '기타', key: 'q1_5', count: 0 },
-        ];
-        // Q2 Experiences (Top 10 mostly populated)
-        // Specific Logic for Q2 mapping to readable names
-        const q2Map = {
-            'q2_1_1': '학점관리', 'q2_1_2': '인/적성', 'q2_1_3': '진로상담', 'q2_1_4': '선배/현직자',
-            'q2_2_1': '어학성적', 'q2_2_2': '어학회화',
-            'q2_3_1': '컴퓨터', 'q2_3_2': '직무자격증',
-            'q2_4_1': '현장실습', 'q2_4_2': '아르바이트', 'q2_4_3': '봉사활동',
-            'q2_5_1': '어학연수', 'q2_5_2': '교환학생', 'q2_5_3': '해외인턴',
-            'q2_6_1': '동아리', 'q2_6_2': '자치봉사', 'q2_6_3': '학생회', 'q2_6_4': '학회',
-            'q2_7_1': '공모전', 'q2_7_2': '연구/논문', 'q2_7_3': '경진대회',
-        };
-
-        const q2Agg = {};
-        // College
-        const colCounts = {};
-
-        surveyData.forEach(item => {
-            // Q1
-            q1Counts.forEach(q => { if (item[q.key] === '1') q.count++; });
-
-            // Q2
-            Object.entries(q2Map).forEach(([key, label]) => {
-                if (item[key] === '1') {
-                    if (!q2Agg[label]) q2Agg[label] = 0;
-                    q2Agg[label]++;
-                }
-            });
-
-            // College
-            const c = item.college || '미기재';
-            if (!colCounts[c]) colCounts[c] = 0;
-            colCounts[c]++;
-        });
-
-        // Format Q2 for Chart (Sort by count)
-        const q2ChartData = Object.entries(q2Agg)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count);
-
-        // Format College
-        const colChartData = Object.entries(colCounts)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
-
-        return { q1: q1Counts, q2: q2ChartData, college: colChartData };
-    }, [surveyData]);
-
 
     // --- Excel Download ---
     const handleDownload = () => {
@@ -436,8 +448,8 @@ const PreSurvey = () => {
                 <button className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>
                     <List size={16} style={{ marginRight: '6px' }} /> 설문 목록
                 </button>
-                <button className={`tab-btn ${activeTab === 'chart' ? 'active' : ''}`} onClick={() => setActiveTab('chart')}>
-                    <PieChartIcon size={16} style={{ marginRight: '6px' }} /> 설문 통계
+                <button className={`tab-btn ${activeTab === 'preview' ? 'active' : ''}`} onClick={() => setActiveTab('preview')}>
+                    <FileText size={16} style={{ marginRight: '6px' }} /> 원본 문서 (미리보기)
                 </button>
             </div>
 
@@ -604,81 +616,62 @@ const PreSurvey = () => {
                         </tbody>
                     </table>
                 </div>
-            ) : (
-                <div className="chart-dashboard">
-                    {/* Charts Grid */}
+            ) : activeTab === 'preview' ? (
+                <div className="preview-container" style={{ padding: '20px' }}>
                     {surveyData.length > 0 ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
-                            {/* Q1 Chart */}
-                            <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                                <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#00462A' }}>상담 신청 이유 (Q1)</h3>
-                                <div style={{ height: '300px' }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={chartsData.q1}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                                            <YAxis allowDecimals={false} />
-                                            <RechartsTooltip cursor={{ fill: '#f5f5f5' }} />
-                                            <Bar dataKey="count" fill="#00462A" radius={[4, 4, 0, 0]}>
-                                                <LabelList dataKey="count" position="top" fill="#333" fontSize={12} fontWeight="bold" />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                            {surveyData.map((item, idx) => (
+                                <div key={idx} style={{
+                                    background: 'white',
+                                    borderRadius: '12px',
+                                    padding: '30px',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                                    border: '1px solid #e0e0e0'
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        marginBottom: '20px',
+                                        paddingBottom: '15px',
+                                        borderBottom: '2px solid #00462A'
+                                    }}>
+                                        <FileText size={20} style={{ marginRight: '10px', color: '#00462A' }} />
+                                        <h3 style={{ margin: 0, color: '#00462A', fontSize: '18px', fontWeight: '600' }}>
+                                            {item.fileName}
+                                        </h3>
+                                        <span style={{
+                                            marginLeft: 'auto',
+                                            padding: '4px 12px',
+                                            background: '#f0f0f0',
+                                            borderRadius: '20px',
+                                            fontSize: '13px',
+                                            color: '#666'
+                                        }}>
+                                            {item.name || '이름 미기재'} ({item.studentId || '학번 미기재'})
+                                        </span>
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: '14px',
+                                            lineHeight: '1.8',
+                                            color: '#333',
+                                            maxHeight: '600px',
+                                            overflowY: 'auto',
+                                            padding: '10px'
+                                        }}
+                                        dangerouslySetInnerHTML={{ __html: item.originalHtml || '<p>원본 HTML이 없습니다.</p>' }}
+                                    />
                                 </div>
-                            </div>
-
-                            {/* College Chart */}
-                            <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                                <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#00462A' }}>참여 단과대학 비율</h3>
-                                <div style={{ height: '300px' }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={chartsData.college}
-                                                cx="50%"
-                                                cy="50%"
-                                                labelLine={false}
-                                                label={renderCustomizedLabel}
-                                                outerRadius={100}
-                                                fill="#8884d8"
-                                                dataKey="value"
-                                            >
-                                                {chartsData.college.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <RechartsTooltip />
-                                            <Legend layout="vertical" verticalAlign="middle" align="right" />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            {/* Q2 Chart (Full Width) */}
-                            <div style={{ gridColumn: '1 / -1', background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                                <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#00462A' }}>대학생활 경험 (Q2) - 응답 순위</h3>
-                                <div style={{ height: '400px' }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={chartsData.q2} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                                            <XAxis type="number" allowDecimals={false} />
-                                            <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
-                                            <RechartsTooltip cursor={{ fill: '#f5f5f5' }} />
-                                            <Bar dataKey="count" fill="#4CAF60" radius={[0, 4, 4, 0]}>
-                                                <LabelList dataKey="count" position="right" fill="#333" fontSize={12} fontWeight="bold" />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     ) : (
-                        <div className="no-data" style={{ background: 'white', borderRadius: '12px' }}>
-                            데이터를 업로드하면 통계가 표시됩니다.
+                        <div className="no-data" style={{ background: 'white', borderRadius: '12px', padding: '60px', textAlign: 'center' }}>
+                            <FileText size={48} style={{ color: '#ccc', marginBottom: '15px' }} />
+                            <p style={{ color: '#888', fontSize: '16px' }}>업로드된 문서가 없습니다.</p>
                         </div>
                     )}
                 </div>
-            )}
+            ) : null}
 
             <div className="button-container">
                 <input
