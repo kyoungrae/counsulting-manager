@@ -146,33 +146,57 @@ const PreSurvey = () => {
                 if (fullText.includes('취업정보 수집용') && checkRowForMark()) extracted.q1_3 = '1';
                 if (fullText.includes('취업준비 전략용') && checkRowForMark()) extracted.q1_4 = '1';
 
-                const q2Configs = [
-                    { kw: '학점 관리', field: 'q2_1_1' }, { kw: '인/적성검사', field: 'q2_1_2' }, { kw: '진로상담', field: 'q2_1_3' }, { kw: '선배 및 현직자 등 멘토링 참여', field: 'q2_1_4' },
-                    { kw: '공인어학성적 취득 노력', field: 'q2_2_1' }, { kw: '어학 회화 능력 향상(제2외국어, 한자 등 포함)', field: 'q2_2_2' },
-                    { kw: '컴퓨터 관련 자격증 취득 or 노력', field: 'q2_3_1' }, { kw: '업무(직무) 관련 자격증 취득 or 노력', field: 'q2_3_2' },
-                    { kw: '현장실습 및 인턴', field: 'q2_4_1' }, { kw: '아르바이트', field: 'q2_4_2' }, { kw: '봉사활동', field: 'q2_4_3' },
-                    { kw: '어학연수', field: 'q2_5_1' }, { kw: '교환학생', field: 'q2_5_2' }, { kw: '해외인턴십', field: 'q2_5_3' },
-                    { kw: '교내.외 동아리', field: 'q2_6_1' }, { kw: '봉사활동', field: 'q2_6_2' }, { kw: '학생회 활동', field: 'q2_6_3' }, { kw: '학회 활동', field: 'q2_6_4' },
-                    { kw: '공모전 – 연구 및 학회참석, 포스터로 학회참석', field: 'q2_7_1' }, { kw: '경진대회', field: 'q2_7_3' }
-                ];
-                const q3Configs = [
-                    { kw: '인사', field: 'q3_1' }, { kw: '교육', field: 'q3_2' }, { kw: '재무/회계', field: 'q3_3' }, { kw: '법무', field: 'q3_4' }, { kw: '미디어/홍보', field: 'q3_5' }, { kw: '비즈니스전략', field: 'q3_6' },
-                    { kw: '마케팅', field: 'q3_7' }, { kw: '영업', field: 'q3_8' }, { kw: '데이터', field: 'q3_9' },
-                    { kw: '구매', field: 'q3_10' }, { kw: '물류', field: 'q3_11' }, { kw: 'SCM', field: 'q3_12' },
-                    { kw: '기획 및 분석', field: 'q3_13' }, { kw: '빅데이터', field: 'q3_14' },
-                    { kw: '생산', field: 'q3_15' }, { kw: '품질', field: 'q3_16' },
-                    { kw: '연구개발', field: 'q3_17' }, { kw: '엔지니어링', field: 'q3_18' }, { kw: '리서치', field: 'q3_19' },
-                    { kw: '서비스기획', field: 'q3_20' }, { kw: '프론트/백앤드 개발', field: 'q3_21' }, { kw: '정보보안', field: 'q3_22' },
-                    { kw: '디자인', field: 'q3_23' }, { kw: '사업개발', field: 'q3_24' }, { kw: '투자', field: 'q3_25' }, { kw: '기타', field: 'q3_26' }
-                ];
-                const q4Configs = [
-                    { kw: '급여', field: 'q4_1' }, { kw: '승진기회', field: 'q4_2' }, { kw: '근무환경', field: 'q4_3' }, { kw: '근무시간', field: 'q4_4' },
-                    { kw: '업무량', field: 'q4_5' }, { kw: '업무 난이도', field: 'q4_6' }, { kw: '적은 스트레스', field: 'q4_7' }, { kw: '전공과의 연관성', field: 'q4_8' },
-                    { kw: '비전 및 가치관', field: 'q4_9' }, { kw: '적성과 흥미', field: 'q4_10' }, { kw: '기업브랜드', field: 'q4_11' }, { kw: '미래전망', field: 'q4_12' },
-                    { kw: '취업 및 이직', field: 'q4_13' }, { kw: '매력적인 느낌', field: 'q4_14' }
-                ];
+                // --- Categorized Configuration ---
+                const q2Groups = {
+                    group1: [{ kw: '학점 관리', field: 'q2_1_1' }, { kw: '인/적성검사', field: 'q2_1_2' }, { kw: '진로상담', field: 'q2_1_3' }, { kw: '선배 및 현직자 등 멘토링 참여', field: 'q2_1_4' }],
+                    group2: [{ kw: '공인어학성적 취득 노력', field: 'q2_2_1' }, { kw: '어학 회화 능력 향상(제2외국어, 한자 등 포함)', field: 'q2_2_2' }],
+                    group3: [{ kw: '컴퓨터 관련 자격증 취득 or 노력', field: 'q2_3_1' }, { kw: '업무(직무) 관련 자격증 취득 or 노력', field: 'q2_3_2' }],
+                    group4: [{ kw: '현장실습 및 인턴', field: 'q2_4_1' }, { kw: '아르바이트', field: 'q2_4_2' }, { kw: '봉사활동', field: 'q2_4_3' }],
+                    group5: [{ kw: '어학연수', field: 'q2_5_1' }, { kw: '교환학생', field: 'q2_5_2' }, { kw: '해외인턴십', field: 'q2_5_3' }],
+                    group6: [{ kw: '교내.외 동아리', field: 'q2_6_1' }, { kw: '봉사활동', field: 'q2_6_2' }, { kw: '학생회 활동', field: 'q2_6_3' }, { kw: '학회 활동', field: 'q2_6_4' }],
+                    group7: [{ kw: '공모전 – 연구 및 학회참석, 포스터로 학회참석', field: 'q2_7_1' }, { kw: '경진대회', field: 'q2_7_3' }]
+                };
 
-                analyzeSegments(fullText, nodeHtml, [...q2Configs, ...q3Configs, ...q4Configs]);
+                const q3Groups = {
+                    group1: [{ kw: '인사', field: 'q3_1' }, { kw: '교육', field: 'q3_2' }, { kw: '재무/회계', field: 'q3_3' }, { kw: '법무', field: 'q3_4' }, { kw: '미디어/홍보', field: 'q3_5' }, { kw: '비즈니스전략', field: 'q3_6' }],
+                    group2: [{ kw: '마케팅', field: 'q3_7' }, { kw: '영업', field: 'q3_8' }, { kw: '데이터', field: 'q3_9' }],
+                    group3: [{ kw: '구매', field: 'q3_10' }, { kw: '물류', field: 'q3_11' }, { kw: 'SCM', field: 'q3_12' }],
+                    group4: [{ kw: '기획 및 분석', field: 'q3_13' }, { kw: '빅데이터', field: 'q3_14' }],
+                    group5: [{ kw: '생산', field: 'q3_15' }, { kw: '품질', field: 'q3_16' }],
+                    group6: [{ kw: '연구개발', field: 'q3_17' }, { kw: '엔지니어링', field: 'q3_18' }, { kw: '리서치', field: 'q3_19' }],
+                    group7: [{ kw: '서비스기획', field: 'q3_20' }, { kw: '프론트/백앤드 개발', field: 'q3_21' }, { kw: '정보보안', field: 'q3_22' }],
+                    group8: [{ kw: '디자인', field: 'q3_23' }, { kw: '사업개발', field: 'q3_24' }, { kw: '투자', field: 'q3_25' }, { kw: '기타', field: 'q3_26' }]
+                };
+
+                const q4Groups = {
+                    group1: [{ kw: '급여', field: 'q4_1' }, { kw: '승진기회', field: 'q4_2' }, { kw: '근무환경', field: 'q4_3' }, { kw: '근무시간', field: 'q4_4' }],
+                    group2: [{ kw: '업무량', field: 'q4_5' }, { kw: '업무 난이도', field: 'q4_6' }, { kw: '적은 스트레스', field: 'q4_7' }, { kw: '전공과의 연관성', field: 'q4_8' }],
+                    group3: [{ kw: '비전 및 가치관', field: 'q4_9' }, { kw: '적성과 흥미', field: 'q4_10' }, { kw: '기업브랜드', field: 'q4_11' }],
+                    group4: [{ kw: '미래전망', field: 'q4_12' }, { kw: '취업 및 이직', field: 'q4_13' }, { kw: '매력적인 느낌', field: 'q4_14' }]
+                };
+
+                // Apply conditional logic based on section headers
+                if (/\(1\)\s*대학\s*생활/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group1);
+                else if (/\(2\)\s*어학/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group2);
+                else if (/\(3\)\s*자격증/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group3);
+                else if (/\(4\)\s*(일\s*경험|사회\s*활동)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group4);
+                else if (/\(5\)\s*(글로벌|해외\s*경험)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group5);
+                else if (/\(6\)\s*(자치\s*활동|교내\s*활동)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group6);
+                else if (/\(7\)\s*(도전\s*경험|공모전)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group7);
+
+                else if (/\(1\)\s*경영지원/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group1);
+                else if (/\(2\)\s*마케팅/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group2);
+                else if (/\(3\)\s*물류/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group3);
+                else if (/\(4\)\s*데이터/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group4);
+                else if (/\(5\)\s*생산/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group5);
+                else if (/\(6\)\s*연구/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group6);
+                else if (/\(7\)\s*IT/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group7);
+                else if (/\(8\)\s*기타/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group8);
+
+                else if (/\(1\)\s*근무조건|경제적/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group1);
+                else if (/\(2\)\s*업무조건|업무수행/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group2);
+                else if (/\(3\)\s*가치관/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group3);
+                else if (/\(4\)\s*가치판단|미래전망/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group4);
 
                 if (fullText.includes('(8) 기타')) {
                     const idx = cells.findIndex(c => c.includes('(8) 기타'));
