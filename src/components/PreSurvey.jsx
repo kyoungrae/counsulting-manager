@@ -157,24 +157,20 @@ const PreSurvey = () => {
                 checkKeyword('학점 관리', 'q2_1_1');
                 checkKeyword('인/적성검사', 'q2_1_2');
                 checkKeyword('진로상담', 'q2_1_3');
-                checkKeyword('선배 및 현직자 등 멘토링', 'q2_1_4'); // Exact match
+                checkKeyword('선배 및 현직자 등 멘토링 참여', 'q2_1_4'); // Exact match
 
                 // (2) Language
-                checkKeyword('공인어학성적 취득', 'q2_2_1');
-                checkKeyword('어학 회화 능력', 'q2_2_2');
+                checkKeyword('공인어학성적 취득 노력', 'q2_2_1');
+                checkKeyword('어학 회화 능력 향상(제2외국어, 한자 등 포함)', 'q2_2_2');
 
                 // (3) Certificates
-                checkKeyword('컴퓨터 관련 자격증', 'q2_3_1');
-                checkKeyword('업무(직무) 관련 자격증', 'q2_3_2');
+                checkKeyword('컴퓨터 관련 자격증 취득 or 노력', 'q2_3_1');
+                checkKeyword('업무(직무) 관련 자격증 취득 or 노력', 'q2_3_2');
 
                 // (4) Work Experience
                 checkKeyword('현장실습 및 인턴', 'q2_4_1');
                 checkKeyword('아르바이트', 'q2_4_2');
-                // Context-aware: '봉사활동' appears in both (4) and (6).
-                // Use strict context check based on row content if possible
-                if (fullText.includes('(4) 일 경험')) {
-                    if (fullText.includes('봉사활동') && isChecked(fullText)) extracted.q2_4_3 = '1';
-                }
+                checkKeyword('봉사활동', 'q2_4_3');
 
                 // (5) Global
                 checkKeyword('어학연수', 'q2_5_1');
@@ -183,9 +179,7 @@ const PreSurvey = () => {
 
                 // (6) Autonomous
                 checkKeyword('교내.외 동아리', 'q2_6_1');
-                if (fullText.includes('(6) 자치 활동')) {
-                    if (fullText.includes('봉사활동') && isChecked(fullText)) extracted.q2_6_2 = '1';
-                }
+                checkKeyword('봉사활동', 'q2_6_2');
                 checkKeyword('학생회 활동', 'q2_6_3');
                 checkKeyword('학회 활동', 'q2_6_4');
 
@@ -214,14 +208,20 @@ const PreSurvey = () => {
                 }
 
                 // Q4 Work Values (1-14)
-                checkKeyword('급여', 'q4_1'); checkKeyword('승진기회', 'q4_2'); checkKeyword('근무환경', 'q4_3'); checkKeyword('근무시간', 'q4_4');
-                checkKeyword('업무량', 'q4_5'); checkKeyword('업무난이도', 'q4_6'); checkKeyword('적은스트레스', 'q4_7'); checkKeyword('전공연관성', 'q4_8');
-                checkKeyword('비전', 'q4_9'); // Vision/Values
+                checkKeyword('급여', 'q4_1');
+                checkKeyword('승진기회', 'q4_2');
+                checkKeyword('근무환경', 'q4_3');
+                checkKeyword('근무시간', 'q4_4');
+                checkKeyword('업무량', 'q4_5');
+                checkKeyword('업무 난이도', 'q4_6');
+                checkKeyword('적은 스트레스', 'q4_7');
+                checkKeyword('전공과의 연관성', 'q4_8');
+                checkKeyword('나의 비전 및 가치관과의 부합성', 'q4_9'); // Vision/Values
                 checkKeyword('적성과 흥미', 'q4_10');
                 checkKeyword('기업브랜드', 'q4_11');
                 checkKeyword('미래전망', 'q4_12');
-                checkKeyword('취업 및 이직', 'q4_13'); // Charm?
-                checkKeyword('매력', 'q4_14');
+                checkKeyword('취업 및 이직 용이성', 'q4_13'); // Charm?
+                checkKeyword('매력적인 느낌', 'q4_14');
 
                 // Q5 & Q6 Text Extraction
                 // Heuristic: Look for cell content after the label.
@@ -306,7 +306,6 @@ const PreSurvey = () => {
                 // 3-(4) Data (데이터) - Original category
                 checkItemsInParagraph(p, /\(4\)\s*데이터/i, {
                     '기획 및 분석': 'q3_13',
-                    '기획및분석': 'q3_13', // No space variant
                     '빅데이터': 'q3_14'
                 });
 
@@ -326,10 +325,7 @@ const PreSurvey = () => {
                 // 3-(7) IT
                 checkItemsInParagraph(p, /\(7\)\s*IT/i, {
                     '서비스기획': 'q3_20',
-                    '서비스 기획': 'q3_20',
-                    '프론트': 'q3_21',
-                    '백앤드': 'q3_21',
-                    '프론트/백앤드': 'q3_21',
+                    '프론트/백앤드 개발': 'q3_21',
                     '정보보안': 'q3_22'
                 });
 
