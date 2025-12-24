@@ -68,7 +68,8 @@ const PreSurvey = () => {
                 const matches = Array.from(uniquePosMap.values()).sort((a, b) => a.start - b.start);
                 if (matches.length === 0) return;
 
-                const labelMatch = targetText.match(/\(\d\)\s*[^\s□▣■☑]+/);
+                const labelMatch = targetText.match(/\(\d\)\s*[^s□▣■☑]+/);
+                console.log(labelMatch)
                 const categoryLabel = labelMatch ? labelMatch[0].trim() : "분류";
                 const units = [];
 
@@ -78,6 +79,13 @@ const PreSurvey = () => {
 
                     const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑\s]*$/);
                     const cleanPre = symbolPart ? symbolPart[0].trim() : "";
+
+                    // Filter: Ignore if no box symbol found AND not highlighted (likely header text)
+                    const escKW = m.matchedKW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const hRegex = new RegExp(`<mark[^>]*>(?:(?!<\\/mark>).)*${escKW}`, 'i');
+                    const isMarked = hRegex.test(targetHtml);
+
+                    if (!cleanPre && !isMarked) return;
 
                     const unitString = `${cleanPre}${m.matchedKW}`;
                     units.push(unitString);
@@ -94,24 +102,23 @@ const PreSurvey = () => {
                         isChecked = true;
                     }
 
-                    if (!isChecked) {
-                        const escKW = m.matchedKW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const hRegex = new RegExp(`<mark[^>]*>(?:(?!<\\/mark>).)*${escKW}`, 'i');
-                        if (hRegex.test(targetHtml)) isChecked = true;
-                    }
+                    if (!isChecked && isMarked) isChecked = true;
 
                     if (isChecked) {
                         m.fields.forEach(f => extracted[f] = '1');
                     }
                 });
-                console.log(units)
-                // console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
+                // console.log(units)
+                console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
             };
             const contentNodes = tempDiv.querySelectorAll('tr, p, li');
             contentNodes.forEach(node => {
                 let cells = [];
                 let fullText = '';
-                const nodeHtml = node.innerHTML;
+                const clone = node.cloneNode(true);
+                const firstTd = clone.querySelector('td');
+                if (firstTd) firstTd.remove();
+                const nodeHtml = clone.innerHTML;
                 if (node.tagName.toLowerCase() === 'tr') {
                     cells = Array.from(node.querySelectorAll('td')).map(td => td.innerText.trim());
                     fullText = cells.join(' ');
@@ -175,12 +182,12 @@ const PreSurvey = () => {
                 // Apply conditional logic based on section headers
 
                 if (/\(1\)\s*대학생활/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group1);
-                else if (/\(2\)\s*어학/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group2);
+                else if (/\(2\)\s*어학능력/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group2);
                 else if (/\(3\)\s*자격증/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group3);
-                else if (/\(4\)\s*일경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group4);
-                else if (/\(5\)\s*글로벌경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group5);
-                else if (/\(6\)\s*자치활동/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group6);
-                else if (/\(7\)\s*도전경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group7);
+                else if (/\(4\)\s*일 경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group4);
+                else if (/\(5\)\s*글로벌 경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group5);
+                else if (/\(6\)\s*자치 활동/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group6);
+                else if (/\(7\)\s*도전 경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group7);
 
                 else if (/\(1\)\s*경영지원/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group1);
                 else if (/\(2\)\s*마케팅\/영업/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group2);
@@ -191,10 +198,10 @@ const PreSurvey = () => {
                 else if (/\(7\)\s*IT/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group7);
                 else if (/\(8\)\s*기타/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group8);
 
-                else if (/\(1\)\s*근무조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group1);
-                else if (/\(2\)\s*업무조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group2);
-                else if (/\(3\)\s*가치관\s*기준/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group3);
-                else if (/\(4\)\s*가치판단/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group4);
+                else if (/\(1\)\s*근무 조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group1);
+                else if (/\(2\)\s*업무 조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group2);
+                else if (/\(3\)\s*나의 가치관 기준/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group3);
+                else if (/\(4\)\s*타인의 가치판단 고려/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group4);
 
                 if (fullText.includes('(8) 기타')) {
                     const idx = cells.findIndex(c => c.includes('(8) 기타'));
