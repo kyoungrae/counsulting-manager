@@ -75,8 +75,7 @@ const PreSurvey = () => {
 
                 const matches = Array.from(uniquePosMap.values()).sort((a, b) => a.start - b.start);
                 if (matches.length === 0) return;
-                console.log(targetText)
-                const labelMatch = targetText.match(/\(\d\)\s*[^s□▣■☑]+/);
+                const labelMatch = targetText.match(/\(\d\)\s*[^□▣■☑]+/);
                 const categoryLabel = labelMatch ? labelMatch[0].trim() : "분류";
                 const units = [];
 
@@ -87,11 +86,10 @@ const PreSurvey = () => {
                     const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑\s]*$/);
                     const cleanPre = symbolPart ? symbolPart[0].trim() : "";
 
-                    // Filter: Ignore if no box symbol found AND not highlighted (likely header text)
                     const escKW = m.matchedKW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const hRegex = new RegExp(`<mark[^>]*>(?:(?!<\\/mark>).)*${escKW}`, 'i');
-                    const isMarked = hRegex.test(targetHtml);
+                    const isMarked = new RegExp(`<mark[^>]*>(?:(?!<\\/mark>).)*${escKW}`, 'i').test(targetHtml);
 
+                    // Filter: Ignore if no box symbol found AND not highlighted (likely header text)
                     if (!cleanPre && !isMarked) return;
 
                     const unitString = `${cleanPre}${m.matchedKW}`;
@@ -109,13 +107,21 @@ const PreSurvey = () => {
                         isChecked = true;
                     }
 
-                    if (!isChecked && isMarked) isChecked = true;
+                    if (!isChecked) {
+                        // Check 1: The keyword itself is inside a mark tag
+                        const hRegex = new RegExp(`<mark[^>]*>(?:(?!<\\/mark>).)*${escKW}`, 'i');
+
+                        // Check 2: The checkbox symbol immediately preceding the keyword is inside a mark tag
+                        const boxMarkRegex = new RegExp(`<mark[^>]*>[^<]*?[□\u25A1\u2610][^<]*?<\\/mark>\\s*${escKW}`, 'i');
+
+                        if (hRegex.test(targetHtml) || boxMarkRegex.test(targetHtml)) isChecked = true;
+                    }
 
                     if (isChecked) {
                         m.fields.forEach(f => extracted[f] = '1');
                     }
                 });
-                // console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
+                console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
             };
             const contentNodes = tempDiv.querySelectorAll('tr, p, li');
             let inQ5Table = false;
@@ -135,7 +141,6 @@ const PreSurvey = () => {
                     fullText = node.innerText.trim();
                     cells = [fullText];
                 }
-
                 if (!fullText) return;
                 const checkRowForMark = () => {
                     return cells.some(cell => {
@@ -223,6 +228,7 @@ const PreSurvey = () => {
                 else if (/\(6\)\s*자치 활동/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group6);
                 else if (/\(7\)\s*도전 경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group7);
 
+                // 3. Section Headers & Main Logic
                 else if (/\(1\)\s*경영지원/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group1);
                 else if (/\(2\)\s*마케팅\/영업/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group2);
                 else if (/\(3\)\s*물류/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group3);
@@ -230,10 +236,10 @@ const PreSurvey = () => {
                 else if (/\(5\)\s*생산\/품질/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group5);
                 else if (/\(6\)\s*연구/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group6);
                 else if (/\(7\)\s*IT/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group7);
-
                 else if (/\(8\)\s*기타/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group8);
                 else if (/\(9\)\s*위의 (1)~(8)에 해당하지 않은 경우, 관심있는 업무\/직무나 목표하고 있는 기업\/기관이 있으면 이에 대해 간단히 작성해 주시기 바랍니다./i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group9);
 
+                // 4. Section Headers & Main Logic
                 else if (/\(1\)\s*근무 조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group1);
                 else if (/\(2\)\s*업무 조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group2);
                 else if (/\(3\)\s*나의 가치관 기준/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group3);
