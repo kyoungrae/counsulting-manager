@@ -411,7 +411,7 @@ const PreSurvey = () => {
                                     <td className="col-center">{item.studentId}</td>
                                     <td className="col-center">{item.name}</td>
                                     {/* Q1 */}
-                                    <td className="col-center q-check">{item.q1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_5 ? item.q1_5 : ''}</td>
+                                    <td className="col-center q-check">{item.q1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_4 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q1_5 ? item.q1_5 : ''}</div></td>
                                     {/* Q2 */}
                                     <td className="col-center q-check">{item.q2_1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_1_4 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q2_2_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_2_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_2 === '1' ? '1' : ''}</td>

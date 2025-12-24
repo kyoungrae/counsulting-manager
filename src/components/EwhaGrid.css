@@ -727,3 +727,38 @@
     color: var(--ewha-green);
     font-weight: bold;
 }
+
+/* Scroll Cell Styles for Long Text Fields */
+.scroll-cell {
+    max-height: 80px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.85rem;
+    text-align: left;
+    padding: 8px;
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+}
+
+/* Custom scrollbar for webkit */
+.scroll-cell::-webkit-scrollbar {
+    width: 4px;
+}
+
+.scroll-cell::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.scroll-cell::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 2px;
+}
+
+/* Ensure table cells containing scroll-cell maintain proper padding */
+.pre-survey-table td:has(.scroll-cell) {
+    padding: 0;
+    vertical-align: top;
+}
