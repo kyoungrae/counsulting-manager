@@ -121,7 +121,7 @@ const PreSurvey = () => {
                         m.fields.forEach(f => extracted[f] = '1');
                     }
                 });
-                console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
+                // console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
             };
             const contentNodes = tempDiv.querySelectorAll('tr, p, li');
             let inQ5Table = false;
@@ -159,12 +159,16 @@ const PreSurvey = () => {
                         if (cell.includes('이름') || cell.includes('성명')) extracted.name = cells[idx + 1] || extracted.name;
                     });
                 }
-
                 if (fullText.includes('자기탐색용') && checkRowForMark()) extracted.q1_1 = '1';
                 if (fullText.includes('진로선택용') && checkRowForMark()) extracted.q1_2 = '1';
                 if (fullText.includes('취업정보 수집용') && checkRowForMark()) extracted.q1_3 = '1';
                 if (fullText.includes('취업준비 전략용') && checkRowForMark()) extracted.q1_4 = '1';
-
+                const longKeword = '(5) 위의 ①~④에 해당하지 않은 경우, 컨설팅 신청 이유를 간단히 작성해 주시기 바랍니다.';
+                if (fullText.includes(longKeword) && checkRowForMark()) {
+                    let cleanedValue = fullText.replace(longKeword, '');
+                    cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check/gi, '');
+                    extracted.q1_5 = cleanedValue.trim();
+                }
                 // --- Categorized Configuration ---
                 const q2Groups = {
                     group1: [{ kw: '학점 관리', field: 'q2_1_1' }, { kw: '인/적성검사', field: 'q2_1_2' }, { kw: '진로상담', field: 'q2_1_3' }, { kw: '선배 및 현직자 등 멘토링 참여', field: 'q2_1_4' }],
@@ -407,7 +411,7 @@ const PreSurvey = () => {
                                     <td className="col-center">{item.studentId}</td>
                                     <td className="col-center">{item.name}</td>
                                     {/* Q1 */}
-                                    <td className="col-center q-check">{item.q1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_5 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q1_5 ? item.q1_5 : ''}</td>
                                     {/* Q2 */}
                                     <td className="col-center q-check">{item.q2_1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_1_4 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q2_2_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_2_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_2 === '1' ? '1' : ''}</td>
