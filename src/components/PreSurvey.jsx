@@ -75,9 +75,8 @@ const PreSurvey = () => {
 
                 const matches = Array.from(uniquePosMap.values()).sort((a, b) => a.start - b.start);
                 if (matches.length === 0) return;
-
+                console.log(targetText)
                 const labelMatch = targetText.match(/\(\d\)\s*[^s□▣■☑]+/);
-                console.log(labelMatch)
                 const categoryLabel = labelMatch ? labelMatch[0].trim() : "분류";
                 const units = [];
 
@@ -116,8 +115,7 @@ const PreSurvey = () => {
                         m.fields.forEach(f => extracted[f] = '1');
                     }
                 });
-                // console.log(units)
-                console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
+                // console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
             };
             const contentNodes = tempDiv.querySelectorAll('tr, p, li');
             let inQ5Table = false;
@@ -170,7 +168,7 @@ const PreSurvey = () => {
                     group4: [{ kw: '현장실습 및 인턴', field: 'q2_4_1' }, { kw: '아르바이트', field: 'q2_4_2' }, { kw: '봉사활동', field: 'q2_4_3' }],
                     group5: [{ kw: '어학연수', field: 'q2_5_1' }, { kw: '교환학생', field: 'q2_5_2' }, { kw: '해외인턴십', field: 'q2_5_3' }],
                     group6: [{ kw: '교내.외 동아리', field: 'q2_6_1' }, { kw: '봉사활동', field: 'q2_6_2' }, { kw: '학생회 활동', field: 'q2_6_3' }, { kw: '학회 활동', field: 'q2_6_4' }],
-                    group7: [{ kw: '공모전 – 연구 및 학회참석, 포스터로 학회참석', field: 'q2_7_1' }, { kw: '경진대회', field: 'q2_7_3' }]
+                    group7: [{ kw: '공모전 – 연구 및 학회참석, 포스터로 학회참석', field: 'q2_7_1' }, { kw: '공모전', field: 'q2_7_1' }, { kw: '경진대회', field: 'q2_7_3' }]
                 };
 
                 const q3Groups = {
@@ -188,7 +186,7 @@ const PreSurvey = () => {
                 const q4Groups = {
                     group1: [{ kw: '급여', field: 'q4_1' }, { kw: '승진기회', field: 'q4_2' }, { kw: '근무환경', field: 'q4_3' }, { kw: '근무시간', field: 'q4_4' }],
                     group2: [{ kw: '업무량', field: 'q4_5' }, { kw: '업무 난이도', field: 'q4_6' }, { kw: '적은 스트레스', field: 'q4_7' }, { kw: '전공과의 연관성', field: 'q4_8' }],
-                    group3: [{ kw: '비전 및 가치관', field: 'q4_9' }, { kw: '적성과 흥미', field: 'q4_10' }, { kw: '기업브랜드', field: 'q4_11' }],
+                    group3: [{ kw: '나의 비전 및 가치관과의 부합성', field: 'q4_9' }, { kw: '적성과 흥미', field: 'q4_10' }, { kw: '기업브랜드', field: 'q4_11' }],
                     group4: [{ kw: '미래전망', field: 'q4_12' }, { kw: '취업 및 이직', field: 'q4_13' }, { kw: '매력적인 느낌', field: 'q4_14' }]
                 };
                 // Apply conditional logic based on section headers
@@ -216,7 +214,6 @@ const PreSurvey = () => {
                         return; // Consumed as Q5 row
                     }
                 }
-                console.log(fullText)
                 // 2. Section Headers & Main Logic
                 if (/\(1\)\s*대학생활/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group1);
                 else if (/\(2\)\s*어학능력/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group2);
