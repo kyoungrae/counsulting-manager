@@ -104,15 +104,14 @@ const PreSurvey = () => {
                         m.fields.forEach(f => extracted[f] = '1');
                     }
                 });
-                console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
+                console.log(units)
+                // console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
             };
-
             const contentNodes = tempDiv.querySelectorAll('tr, p, li');
             contentNodes.forEach(node => {
                 let cells = [];
                 let fullText = '';
                 const nodeHtml = node.innerHTML;
-
                 if (node.tagName.toLowerCase() === 'tr') {
                     cells = Array.from(node.querySelectorAll('td')).map(td => td.innerText.trim());
                     fullText = cells.join(' ');
@@ -122,7 +121,6 @@ const PreSurvey = () => {
                 }
 
                 if (!fullText) return;
-
                 const checkRowForMark = () => {
                     return cells.some(cell => {
                         const t = cell.trim();
@@ -174,29 +172,29 @@ const PreSurvey = () => {
                     group3: [{ kw: '비전 및 가치관', field: 'q4_9' }, { kw: '적성과 흥미', field: 'q4_10' }, { kw: '기업브랜드', field: 'q4_11' }],
                     group4: [{ kw: '미래전망', field: 'q4_12' }, { kw: '취업 및 이직', field: 'q4_13' }, { kw: '매력적인 느낌', field: 'q4_14' }]
                 };
-
                 // Apply conditional logic based on section headers
-                if (/\(1\)\s*대학\s*생활/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group1);
+
+                if (/\(1\)\s*대학생활/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group1);
                 else if (/\(2\)\s*어학/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group2);
                 else if (/\(3\)\s*자격증/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group3);
-                else if (/\(4\)\s*(일\s*경험|사회\s*활동)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group4);
-                else if (/\(5\)\s*(글로벌|해외\s*경험)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group5);
-                else if (/\(6\)\s*(자치\s*활동|교내\s*활동)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group6);
-                else if (/\(7\)\s*(도전\s*경험|공모전)/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group7);
+                else if (/\(4\)\s*일경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group4);
+                else if (/\(5\)\s*글로벌경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group5);
+                else if (/\(6\)\s*자치활동/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group6);
+                else if (/\(7\)\s*도전경험/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group7);
 
                 else if (/\(1\)\s*경영지원/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group1);
-                else if (/\(2\)\s*마케팅/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group2);
+                else if (/\(2\)\s*마케팅\/영업/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group2);
                 else if (/\(3\)\s*물류/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group3);
                 else if (/\(4\)\s*데이터/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group4);
-                else if (/\(5\)\s*생산/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group5);
+                else if (/\(5\)\s*생산\/품질/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group5);
                 else if (/\(6\)\s*연구/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group6);
                 else if (/\(7\)\s*IT/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group7);
                 else if (/\(8\)\s*기타/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group8);
 
-                else if (/\(1\)\s*근무조건|경제적/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group1);
-                else if (/\(2\)\s*업무조건|업무수행/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group2);
-                else if (/\(3\)\s*가치관/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group3);
-                else if (/\(4\)\s*가치판단|미래전망/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group4);
+                else if (/\(1\)\s*근무조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group1);
+                else if (/\(2\)\s*업무조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group2);
+                else if (/\(3\)\s*가치관\s*기준/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group3);
+                else if (/\(4\)\s*가치판단/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group4);
 
                 if (fullText.includes('(8) 기타')) {
                     const idx = cells.findIndex(c => c.includes('(8) 기타'));
@@ -301,7 +299,7 @@ const PreSurvey = () => {
                                 <th colSpan="2">2-(3) 자격증</th>
                                 <th colSpan="3">2-(4) 일경험</th>
                                 <th colSpan="3">2-(5) 글로벌경험</th>
-                                <th colSpan="4">2-(6) 자치활돌</th>
+                                <th colSpan="4">2-(6) 자치활동</th>
                                 <th colSpan="2">2-(7) 도전경험</th>
                                 <th>2-(8)</th>
                                 <th colSpan="6">3-(1) 경영지원</th>
