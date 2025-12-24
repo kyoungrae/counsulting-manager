@@ -36,12 +36,20 @@ const PreSurvey = () => {
                 q2_6_1: '', q2_6_2: '', q2_6_3: '', q2_6_4: '',
                 q2_7_1: '', q2_7_3: '',
                 q2_8: '',
+                // Q3
+                q3_1: '', q3_2: '', q3_3: '', q3_4: '', q3_5: '', q3_6: '',
+                q3_7: '', q3_8: '', q3_9: '', q3_10: '', q3_11: '', q3_12: '',
+                q3_13: '', q3_14: '', q3_15: '', q3_16: '', q3_17: '', q3_18: '', q3_19: '',
+                q3_20: '', q3_21: '', q3_22: '', q3_23: '', q3_24: '', q3_25: '', q3_26: '',
+                q3_27: '',
+                // Q4
+                q4_1: '', q4_2: '', q4_3: '', q4_4: '',
+                q4_5: '', q4_6: '', q4_7: '', q4_8: '',
+                q4_9: '', q4_10: '', q4_11: '', q4_12: '', q4_13: '', q4_14: '',
+                // Q5, Q6
                 q5_1: '', q5_2: '', q5_3: '', q5_4: '',
                 q6: ''
             };
-
-            for (let i = 1; i <= 26; i++) extracted[`q3_${i}`] = '';
-            for (let i = 1; i <= 14; i++) extracted[`q4_${i}`] = '';
 
             // --- Segment Analysis Engine ---
             const analyzeSegments = (targetText, targetHtml, configs) => {
@@ -112,6 +120,9 @@ const PreSurvey = () => {
                 console.log(JSON.stringify({ [categoryLabel]: units }, null, 2));
             };
             const contentNodes = tempDiv.querySelectorAll('tr, p, li');
+            let inQ5Table = false;
+            let q5Indices = null;
+
             contentNodes.forEach(node => {
                 let cells = [];
                 let fullText = '';
@@ -170,7 +181,8 @@ const PreSurvey = () => {
                     group5: [{ kw: '생산', field: 'q3_15' }, { kw: '품질', field: 'q3_16' }],
                     group6: [{ kw: '연구개발', field: 'q3_17' }, { kw: '엔지니어링', field: 'q3_18' }, { kw: '리서치', field: 'q3_19' }],
                     group7: [{ kw: '서비스기획', field: 'q3_20' }, { kw: '프론트/백앤드 개발', field: 'q3_21' }, { kw: '정보보안', field: 'q3_22' }],
-                    group8: [{ kw: '디자인', field: 'q3_23' }, { kw: '사업개발', field: 'q3_24' }, { kw: '투자', field: 'q3_25' }, { kw: '기타', field: 'q3_26' }]
+                    group8: [{ kw: '디자인', field: 'q3_23' }, { kw: '사업개발', field: 'q3_24' }, { kw: '투자', field: 'q3_25' }, { kw: '기타', field: 'q3_26' }],
+                    group9: [{ kw: '위의 (1)~(8)에 해당하지 않은 경우, 관심있는 업무/직무나 목표하고 있는 기업/기관이 있으면 이에 대해 간단히 작성해 주시기 바랍니다.', field: 'q3_27' }]
                 };
 
                 const q4Groups = {
@@ -181,6 +193,31 @@ const PreSurvey = () => {
                 };
                 // Apply conditional logic based on section headers
 
+                // 1. Q5 Table Row Processing (High Priority State)
+                if (inQ5Table) {
+                    if (fullText.includes('기대하는 점') || fullText.trim().startsWith('6.')) {
+                        inQ5Table = false;
+                        // Fallthrough to check specifically for Q6 header below if needed, 
+                        // but usually '기대하는 점' triggers Q6 logic, so we can let it fall through or handle it here.
+                        // Ideally, if it's the header line, we let the chain catch it.
+                    } else {
+                        if (node.tagName.toLowerCase() === 'tr') {
+                            const append = (field, val) => {
+                                if (!val) return;
+                                extracted[field] = extracted[field] ? extracted[field] + '\n' + val : val;
+                            };
+                            if (q5Indices && cells.length > 0) {
+                                if (q5Indices.q5_1 !== undefined && cells[q5Indices.q5_1]) append('q5_1', cells[q5Indices.q5_1]);
+                                if (q5Indices.q5_2 !== undefined && cells[q5Indices.q5_2]) append('q5_2', cells[q5Indices.q5_2]);
+                                if (q5Indices.q5_3 !== undefined && cells[q5Indices.q5_3]) append('q5_3', cells[q5Indices.q5_3]);
+                                if (q5Indices.q5_4 !== undefined && cells[q5Indices.q5_4]) append('q5_4', cells[q5Indices.q5_4]);
+                            }
+                        }
+                        return; // Consumed as Q5 row
+                    }
+                }
+                console.log(fullText)
+                // 2. Section Headers & Main Logic
                 if (/\(1\)\s*대학생활/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group1);
                 else if (/\(2\)\s*어학능력/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group2);
                 else if (/\(3\)\s*자격증/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q2Groups.group3);
@@ -196,28 +233,39 @@ const PreSurvey = () => {
                 else if (/\(5\)\s*생산\/품질/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group5);
                 else if (/\(6\)\s*연구/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group6);
                 else if (/\(7\)\s*IT/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group7);
+
                 else if (/\(8\)\s*기타/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group8);
+                else if (/\(9\)\s*위의 (1)~(8)에 해당하지 않은 경우, 관심있는 업무\/직무나 목표하고 있는 기업\/기관이 있으면 이에 대해 간단히 작성해 주시기 바랍니다./i.test(fullText)) analyzeSegments(fullText, nodeHtml, q3Groups.group9);
 
                 else if (/\(1\)\s*근무 조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group1);
                 else if (/\(2\)\s*업무 조건/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group2);
                 else if (/\(3\)\s*나의 가치관 기준/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group3);
                 else if (/\(4\)\s*타인의 가치판단 고려/i.test(fullText)) analyzeSegments(fullText, nodeHtml, q4Groups.group4);
 
-                if (fullText.includes('(8) 기타')) {
-                    const idx = cells.findIndex(c => c.includes('(8) 기타'));
-                    if (idx !== -1 && idx < cells.length - 1) extracted.q2_8 = cells[idx + 1];
-                }
+                // Q5 Header Detection
+                // else if (/[(]1[)]\s*언제/.test(fullText) && /[(]2[)]\s*어디서/.test(fullText)) {
+                //     if (node.tagName.toLowerCase() === 'tr') {
+                //         inQ5Table = true;
+                //         q5Indices = {};
+                //         cells.forEach((cell, idx) => {
+                //             if (cell.includes('언제')) q5Indices.q5_1 = idx;
+                //             else if (cell.includes('어디서')) q5Indices.q5_2 = idx;
+                //             else if (cell.includes('역할')) q5Indices.q5_3 = idx;
+                //             else if (cell.includes('무엇을') || cell.includes('어떻게')) q5Indices.q5_4 = idx;
+                //         });
+                //     }
+                // }
 
-                const findTextAfter = (label) => {
-                    const idx = cells.findIndex(c => c.includes(label));
-                    if (idx !== -1 && idx < cells.length - 1) return cells[idx + 1];
+                const findTextAfter = (label, cellsToSearch) => {
+                    const idx = cellsToSearch.findIndex(c => c.includes(label));
+                    if (idx !== -1 && idx < cellsToSearch.length - 1) return cellsToSearch[idx + 1];
                     return '';
                 };
-                if (fullText.includes('언제')) extracted.q5_1 = findTextAfter('언제') || extracted.q5_1;
-                if (fullText.includes('어디서')) extracted.q5_2 = findTextAfter('어디서') || extracted.q5_2;
-                if (fullText.includes('역할')) extracted.q5_3 = findTextAfter('역할') || extracted.q5_3;
-                if (fullText.includes('무엇을')) extracted.q5_4 = findTextAfter('무엇을') || extracted.q5_4;
-                if (fullText.includes('기대하는 점')) extracted.q6 = findTextAfter('기대하는 점') || extracted.q6;
+
+                // Q6 Detection
+                if (fullText.includes('기대하는 점')) {
+                    extracted.q6 = findTextAfter('기대하는 점', cells) || extracted.q6;
+                }
             });
 
             return extracted;
@@ -362,13 +410,22 @@ const PreSurvey = () => {
                                     <td className="col-center q-check">{item.q2_2_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_2_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_2 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q2_4_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_4_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_4_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_5_1 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q2_5_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_5_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_2 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q2_6_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_3 === '1' ? '1' : ''}</td><td className="col-center">{item.q2_8}</td>
+                                    <td className="col-center q-check">{item.q2_6_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_3 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q2_8}</div></td>
                                     {/* Q3 */}
-                                    {[...Array(26)].map((_, i) => <td key={i} className="col-center q-check">{item[`q3_${i + 1}`] === '1' ? '1' : ''}</td>)}
+                                    <td className="col-center q-check">{item.q3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_5 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_6 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_7 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_8 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_9 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_10 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_11 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_12 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_13 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_14 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_15 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_16 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_17 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_18 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_19 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_20 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_21 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_22 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_23 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_24 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_25 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_26 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_27 === '1' ? '1' : ''}</td>
                                     {/* Q4 */}
-                                    {[...Array(14)].map((_, i) => <td key={i} className="col-center q-check">{item[`q4_${i + 1}`] === '1' ? '1' : ''}</td>)}
+                                    <td className="col-center q-check">{item.q4_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_4 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q4_5 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_6 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_7 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_8 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q4_9 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_10 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_11 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_12 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q4_13 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_14 === '1' ? '1' : ''}</td>
                                     {/* Q5 */}
-                                    <td className="col-center">{item.q5_1}</td><td className="col-center">{item.q5_2}</td><td className="col-center">{item.q5_3}</td><td className="col-center">{item.q5_4}</td><td className="col-center">{item.q6}</td>
+                                    <td className="col-center"><div className="scroll-cell">{item.q5_1}</div></td><td className="col-center"><div className="scroll-cell">{item.q5_2}</div></td><td className="col-center"><div className="scroll-cell">{item.q5_3}</div></td><td className="col-center"><div className="scroll-cell">{item.q5_4}</div></td>
+                                    {/* Q6 */}
+                                    <td className="col-center"><div className="scroll-cell">{item.q6}</div></td>
                                 </tr>
                             ))}
                             {surveyData.length === 0 && (
