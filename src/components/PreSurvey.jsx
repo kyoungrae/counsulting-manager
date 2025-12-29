@@ -327,13 +327,198 @@ const PreSurvey = () => {
 
     const handleDownload = () => {
         if (surveyData.length === 0) return;
-        const excelRows = surveyData.map((item, idx) => ({
-            'No': idx + 1, '컨설팅 일자': item.consultDate, '단과대학': item.college, '전공': item.dept, '학번': item.studentId, '이름': item.name,
-            ...Object.fromEntries([...Array(5)].map((_, i) => [`1-(${i + 1})`, item[`q1_${i + 1}`]])),
-            ...Object.fromEntries([...Array(26)].map((_, i) => [`3-(${i + 1})`, item[`q3_${i + 1}`]])),
-        }));
+
+        // Create workbook and worksheet
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(excelRows);
+
+        // Header Row 1: Main categories with merged cells
+        const headerRow1 = [
+            'No', '컨설팅 일자', '단과대학', '전공', '학번', '이름',
+            '1-(1)', '1-(2)', '1-(3)', '1-(4)', '1-(5)',
+            '2-(1) 대학생활', '', '', '', // 4 columns merged
+            '2-(2) 어학능력', '', // 2 columns merged
+            '2-(3) 자격증', '', // 2 columns merged
+            '2-(4) 일경험', '', '', // 3 columns merged
+            '2-(5) 글로벌경험', '', '', // 3 columns merged
+            '2-(6) 자치활동', '', '', '', // 4 columns merged
+            '2-(7) 도전경험', '', // 2 columns merged
+            '2-(8)',
+            '3-(1) 경영지원', '', '', '', '', '', // 6 columns merged
+            '3-(2) 마케팅/영업', '', '', // 3 columns merged
+            '3-(3) 물류', '', '', // 3 columns merged
+            '3-(4) 데이터', '', // 2 columns merged
+            '3-(5) 생산/품질', '', // 2 columns merged
+            '3-(6) 연구', '', '', // 3 columns merged
+            '3-(7) IT', '', '', // 3 columns merged
+            '3-(8) 기타', '', '', // 3 columns merged (디자인, 사업개발, 투자)
+            '3-(9)',
+            '4-(1) 근무조건', '', '', '', // 4 columns merged
+            '4-(2) 업무조건', '', '', '', // 4 columns merged
+            '4-(3) 가치관 기준', '', '', // 3 columns merged
+            '4-(4) 가치판단', '', '', // 3 columns merged
+            '5-(1)', '5-(2)', '5-(3)', '5-(4)',
+            '6'
+        ];
+
+        // Header Row 2: Detailed labels
+        const headerRow2 = [
+            '', '', '', '', '', '', // Empty for rowSpan cells from row 1
+            '자기탐색용', '진로선택용', '취업정보\n수집용', '취업준비\n전략용', '기타',
+            '학점관리', '인/적성검사', '진로상담', '선배 및 현직자 멘토링',
+            '공인어학 성적', '어학 회화 능력 향상',
+            '컴퓨터관련', '업무관련',
+            '현장실습(인턴)', '아르바이트', '봉사활동',
+            '어학연수', '교환학생', '해외인턴십',
+            '교내외동아리', '봉사활동', '학생회활동', '학회활동',
+            '공모전', '경진대회',
+            '기타', // 2-(8) 아래의 "기타"
+            '인사', '교육', '재무/회계', '법무', '미디어/홍보', '비즈니스전략',
+            '마케팅', '영업', '데이터',
+            '구매', '물류', 'SCM',
+            '기획및분석', '빅데이터',
+            '생산', '품질',
+            '연구개발', '엔지니어링', '리서치',
+            '서비스기획', '프론트/백앤드개발', '정보보안',
+            '디자인', '사업개발', '투자', // 3-(8) 기타 아래 3개
+            '-', // 3-(9) 아래
+            '급여', '승진기회', '근무환경', '근무시간',
+            '업무량', '업무난이도', '적은스트레스', '전공연관성',
+            '비전/가치관부합', '적성과흥미', '기업브랜드',
+            '미래전망', '취업및이직', '매력',
+            '언제', '어디서', '역할', '무엇을',
+            '기대하는 점'
+        ];
+
+        // Data rows
+        const dataRows = surveyData.map((item, idx) => [
+            idx + 1, item.consultDate, item.college, item.dept, item.studentId, item.name,
+            // Q1
+            item.q1_1, item.q1_2, item.q1_3, item.q1_4, item.q1_5,
+            // Q2
+            item.q2_1_1, item.q2_1_2, item.q2_1_3, item.q2_1_4,
+            item.q2_2_1, item.q2_2_2,
+            item.q2_3_1, item.q2_3_2,
+            item.q2_4_1, item.q2_4_2, item.q2_4_3,
+            item.q2_5_1, item.q2_5_2, item.q2_5_3,
+            item.q2_6_1, item.q2_6_2, item.q2_6_3, item.q2_6_4,
+            item.q2_7_1, item.q2_7_3,
+            item.q2_8,
+            // Q3
+            item.q3_1, item.q3_2, item.q3_3, item.q3_4, item.q3_5, item.q3_6,
+            item.q3_7, item.q3_8, item.q3_9,
+            item.q3_10, item.q3_11, item.q3_12,
+            item.q3_13, item.q3_14,
+            item.q3_15, item.q3_16,
+            item.q3_17, item.q3_18, item.q3_19,
+            item.q3_20, item.q3_21, item.q3_22,
+            item.q3_23, item.q3_24, item.q3_25,
+            item.q3_26,
+            // Q4
+            item.q4_1, item.q4_2, item.q4_3, item.q4_4,
+            item.q4_5, item.q4_6, item.q4_7, item.q4_8,
+            item.q4_9, item.q4_10, item.q4_11,
+            item.q4_12, item.q4_13, item.q4_14,
+            // Q5
+            item.q5_1, item.q5_2, item.q5_3, item.q5_4,
+            // Q6
+            item.q6
+        ]);
+
+        // Combine headers and data
+        const wsData = [headerRow1, headerRow2, ...dataRows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Define merge ranges for header row 1
+        const merges = [
+            // First 6 columns span both rows
+            { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // No
+            { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // 컨설팅 일자
+            { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // 단과대학
+            { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, // 전공
+            { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } }, // 학번
+            { s: { r: 0, c: 5 }, e: { r: 1, c: 5 } }, // 이름
+            // Q1 - no merges (single items)
+            { s: { r: 0, c: 6 }, e: { r: 1, c: 6 } },
+            { s: { r: 0, c: 7 }, e: { r: 1, c: 7 } },
+            { s: { r: 0, c: 8 }, e: { r: 1, c: 8 } },
+            { s: { r: 0, c: 9 }, e: { r: 1, c: 9 } },
+            { s: { r: 0, c: 10 }, e: { r: 1, c: 10 } },
+            // Q2
+            { s: { r: 0, c: 11 }, e: { r: 0, c: 14 } }, // 2-(1) 대학생활
+            { s: { r: 0, c: 15 }, e: { r: 0, c: 16 } }, // 2-(2) 어학능력
+            { s: { r: 0, c: 17 }, e: { r: 0, c: 18 } }, // 2-(3) 자격증
+            { s: { r: 0, c: 19 }, e: { r: 0, c: 21 } }, // 2-(4) 일경험
+            { s: { r: 0, c: 22 }, e: { r: 0, c: 24 } }, // 2-(5) 글로벌경험
+            { s: { r: 0, c: 25 }, e: { r: 0, c: 28 } }, // 2-(6) 자치활동
+            { s: { r: 0, c: 29 }, e: { r: 0, c: 30 } }, // 2-(7) 도전경험
+            // 2-(8) is a single column with "기타" in row 2, no merge needed
+            // Q3
+            { s: { r: 0, c: 32 }, e: { r: 0, c: 37 } }, // 3-(1) 경영지원
+            { s: { r: 0, c: 38 }, e: { r: 0, c: 40 } }, // 3-(2) 마케팅/영업
+            { s: { r: 0, c: 41 }, e: { r: 0, c: 43 } }, // 3-(3) 물류
+            { s: { r: 0, c: 44 }, e: { r: 0, c: 45 } }, // 3-(4) 데이터
+            { s: { r: 0, c: 46 }, e: { r: 0, c: 47 } }, // 3-(5) 생산/품질
+            { s: { r: 0, c: 48 }, e: { r: 0, c: 50 } }, // 3-(6) 연구
+            { s: { r: 0, c: 51 }, e: { r: 0, c: 53 } }, // 3-(7) IT
+            { s: { r: 0, c: 54 }, e: { r: 0, c: 56 } }, // 3-(8) 기타 (3 columns: 디자인, 사업개발, 투자)
+            // 3-(9) (col 57) should NOT be merged vertically, so "-" can show in row 2
+            // Q4
+            { s: { r: 0, c: 58 }, e: { r: 0, c: 61 } }, // 4-(1) 근무조건
+            { s: { r: 0, c: 62 }, e: { r: 0, c: 65 } }, // 4-(2) 업무조건
+            { s: { r: 0, c: 66 }, e: { r: 0, c: 68 } }, // 4-(3) 가치관 기준
+            { s: { r: 0, c: 69 }, e: { r: 0, c: 71 } }, // 4-(4) 가치판단
+            // Q5 & Q6 - No merges (single column, two separate rows for main and sub header)
+            // { s: { r: 0, c: 72 }, e: { r: 1, c: 72 } }, // Removed to show '언제'
+            // { s: { r: 0, c: 73 }, e: { r: 1, c: 73 } }, // Removed to show '어디서'
+            // { s: { r: 0, c: 74 }, e: { r: 1, c: 74 } }, // Removed to show '역할'
+            // { s: { r: 0, c: 75 }, e: { r: 1, c: 75 } }, // Removed to show '무엇을'
+            // { s: { r: 0, c: 76 }, e: { r: 1, c: 76 } }  // Removed to show '기대하는 점'
+        ];
+
+        ws['!merges'] = merges;
+
+        // Set column widths
+        const colWidths = Array(77).fill({ wch: 15 });
+        colWidths[0] = { wch: 5 };  // No
+        colWidths[1] = { wch: 12 }; // 컨설팅 일자
+        colWidths[10] = { wch: 30 }; // Q1-5 (기타)
+        colWidths[31] = { wch: 30 }; // Q2-8 (기타)
+        colWidths[57] = { wch: 30 }; // Q3-27
+        colWidths[72] = { wch: 20 }; // Q5-1
+        colWidths[73] = { wch: 20 }; // Q5-2
+        colWidths[74] = { wch: 20 }; // Q5-3
+        colWidths[75] = { wch: 30 }; // Q5-4
+        colWidths[76] = { wch: 30 }; // Q6
+        ws['!cols'] = colWidths;
+
+        // Apply styles to headers
+        const headerStyle = {
+            fill: { fgColor: { rgb: "00462A" } },
+            font: { color: { rgb: "FFFFFF" }, bold: true },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+        };
+
+        // Apply header styling
+        for (let c = 0; c < headerRow1.length; c++) {
+            const cellRef1 = XLSX.utils.encode_cell({ r: 0, c });
+            const cellRef2 = XLSX.utils.encode_cell({ r: 1, c });
+            if (ws[cellRef1]) ws[cellRef1].s = headerStyle;
+            if (ws[cellRef2]) ws[cellRef2].s = headerStyle;
+        }
+
+        // Apply styles to data cells (Center alignment)
+        const dataStyle = {
+            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+        };
+
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = 2; R <= range.e.r; ++R) { // Start from row 2 (data rows)
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                if (ws[cellRef]) ws[cellRef].s = dataStyle;
+            }
+        }
+
         XLSX.utils.book_append_sheet(wb, ws, "사전설문결과");
         XLSX.writeFile(wb, "사전설문_결과.xlsx");
     };
@@ -441,7 +626,7 @@ const PreSurvey = () => {
                                     <td className="col-center q-check">{item.q3_7 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_8 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_9 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_10 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_11 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_12 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q3_13 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_14 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_15 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_16 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_17 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_18 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q3_19 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_20 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_21 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_22 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_23 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_24 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q3_25 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q3_26 ? item.q3_26 : ''}</div></td>
+                                    <td className="col-center q-check">{item.q3_25 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q3_26 ? item.q3_26 : ''}</div></td><td className="col-center"><div className="scroll-cell">{item.q3_27 ? item.q3_27 : ''}</div></td>
                                     {/* Q4 */}
                                     <td className="col-center q-check">{item.q4_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_4 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q4_5 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_6 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_7 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_8 === '1' ? '1' : ''}</td>
