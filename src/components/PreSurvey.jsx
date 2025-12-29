@@ -37,14 +37,20 @@ const PreSurvey = () => {
                 q2_7_1: '', q2_7_3: '',
                 q2_8: '',
                 // Q3
-                q3_1: '', q3_2: '', q3_3: '', q3_4: '', q3_5: '', q3_6: '',
-                q3_7: '', q3_8: '', q3_9: '', q3_10: '', q3_11: '', q3_12: '',
-                q3_13: '', q3_14: '', q3_15: '', q3_16: '', q3_17: '', q3_18: '', q3_19: '',
-                q3_20: '', q3_21: '', q3_22: '', q3_23: '', q3_24: '', q3_25: '', q3_26: '',
+                q3_1_1: '', q3_1_2: '', q3_1_3: '', q3_1_4: '', q3_1_5: '', q3_1_6: '',
+                q3_2_1: '', q3_2_2: '', q3_2_3: '',
+                q3_3_1: '', q3_3_2: '', q3_3_3: '',
+                q3_4_1: '', q3_4_2: '',
+                q3_5_1: '', q3_5_2: '',
+                q3_6_1: '', q3_6_2: '', q3_6_3: '',
+                q3_7_1: '', q3_7_2: '', q3_7_3: '',
+                q3_8_1: '', q3_8_2: '', q3_8_3: '',
+                q3_9: '',
                 // Q4
-                q4_1: '', q4_2: '', q4_3: '', q4_4: '',
-                q4_5: '', q4_6: '', q4_7: '', q4_8: '',
-                q4_9: '', q4_10: '', q4_11: '', q4_12: '', q4_13: '', q4_14: '',
+                q4_1_1: '', q4_1_2: '', q4_1_3: '', q4_1_4: '',
+                q4_2_1: '', q4_2_2: '', q4_2_3: '', q4_2_4: '',
+                q4_3_1: '', q4_3_2: '', q4_3_3: '',
+                q4_4_1: '', q4_4_2: '', q4_4_3: '',
                 // Q5, Q6
                 q5_1: '', q5_2: '', q5_3: '', q5_4: '',
                 q6: ''
@@ -61,7 +67,7 @@ const PreSurvey = () => {
                         rawMatches.push({ start: m.index, end: regex.lastIndex, field: cfg.field, matchedKW: m[0] });
                     }
                 });
-
+                console.log(targetHtml)
                 const uniquePosMap = new Map();
                 rawMatches.forEach(m => {
                     const key = `${m.start}-${m.end}`;
@@ -82,19 +88,23 @@ const PreSurvey = () => {
                     const prevEnd = idx > 0 ? matches[idx - 1].end : 0;
                     const prefix = targetText.substring(prevEnd, m.start);
 
-                    const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑\s]*$/);
+                    const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑√\s]*$/);
                     const cleanPre = symbolPart ? symbolPart[0].trim() : "";
 
                     const escKW = m.matchedKW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     const isMarked = new RegExp(`<mark[^>]*>(?:(?!<\\/mark>).)*${escKW}`, 'i').test(targetHtml);
 
-                    // Filter: Ignore if no box symbol found AND not highlighted (likely header text)
-                    if (!cleanPre && !isMarked) return;
+                    // Check 3: HTML input with checked attribute (allow intervening tags/text but don't cross another input)
+                    const inputCheckboxRegex = new RegExp(`<input[^>]*checked[^>]*>(?:(?!<input).)*?${escKW}`, 'i');
+                    const isInputChecked = inputCheckboxRegex.test(targetHtml);
+
+                    // Filter: Ignore if no box symbol found AND not highlighted AND not an HTML checkbox
+                    if (!cleanPre && !isMarked && !isInputChecked) return;
 
                     const unitString = `${cleanPre}${m.matchedKW}`;
                     units.push(unitString);
 
-                    const vChars = '[Vv\u2713\u2714]';
+                    const vChars = '[Vv\u2713\u2714√]';
                     const checkedChars = '[▣■☑\u25A3\u25A0\u2611]';
                     const boxChars = '[□\u25A1\u2610]';
 
@@ -113,7 +123,7 @@ const PreSurvey = () => {
                         // Check 2: The checkbox symbol immediately preceding the keyword is inside a mark tag
                         const boxMarkRegex = new RegExp(`<mark[^>]*>[^<]*?[□\u25A1\u2610][^<]*?<\\/mark>\\s*${escKW}`, 'i');
 
-                        if (hRegex.test(targetHtml) || boxMarkRegex.test(targetHtml)) isChecked = true;
+                        if (hRegex.test(targetHtml) || boxMarkRegex.test(targetHtml) || isInputChecked) isChecked = true;
                     }
 
                     if (isChecked) {
@@ -144,8 +154,8 @@ const PreSurvey = () => {
                 const checkRowForMark = () => {
                     return cells.some(cell => {
                         const t = cell.trim();
-                        return /^(V|v|■|☑|check)$/i.test(t) || t.includes('■') || t.includes('☑');
-                    });
+                        return /^(V|v|■|☑|check|√)$/i.test(t) || t.includes('■') || t.includes('☑') || t.includes('√');
+                    }) || /<input[^>]+checked/i.test(nodeHtml);
                 };
 
                 // Student Info
@@ -165,24 +175,24 @@ const PreSurvey = () => {
                 const longKeword = '(5) 위의 ①~④에 해당하지 않은 경우, 컨설팅 신청 이유를 간단히 작성해 주시기 바랍니다.';
                 if (fullText.includes(longKeword) && checkRowForMark()) {
                     let cleanedValue = fullText.replace(longKeword, '');
-                    cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check/gi, '');
+                    cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√/gi, '');
                     extracted.q1_5 = cleanedValue.trim();
                 }
 
-                // Q3-27 text extraction (similar to Q1-5)
-                const q3_26Keyword = '위의 (1)~(8)에 해당하지 않은 경우,';
-                if (fullText.includes(q3_26Keyword)) {
+                // Q3-9 text extraction (similar to Q1-5)
+                const q3_9Keyword = '위의 (1)~(8)에 해당하지 않은 경우,';
+                if (fullText.includes(q3_9Keyword)) {
                     // Extract text after the keyword
-                    const parts = fullText.split(q3_26Keyword);
+                    const parts = fullText.split(q3_9Keyword);
                     if (parts.length > 1) {
                         let cleanedValue = parts[1];
                         // Remove common prefixes and symbols
                         cleanedValue = cleanedValue.replace(/관심있는 업무\/직무나 목표하고 있는 기업\/기관이 있으면 이에 대해 간단히 작성해 주시기 바랍니다\./gi, '');
                         cleanedValue = cleanedValue.replace(/\(9\)/g, '');
-                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check/gi, '');
+                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√/gi, '');
                         cleanedValue = cleanedValue.trim();
                         if (cleanedValue) {
-                            extracted.q3_26 = cleanedValue;
+                            extracted.q3_9 = cleanedValue;
                         }
                     }
                 }
@@ -194,7 +204,7 @@ const PreSurvey = () => {
                         let cleanedValue = parts[1];
                         // Remove common prefixes and symbols
                         cleanedValue = cleanedValue.replace(/\(8\)/g, '');
-                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check/gi, '');
+                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√/gi, '');
                         cleanedValue = cleanedValue.trim();
                         if (cleanedValue) {
                             extracted.q2_8 = cleanedValue;
@@ -213,23 +223,24 @@ const PreSurvey = () => {
                 };
 
                 const q3Groups = {
-                    group1: [{ kw: '인사', field: 'q3_1' }, { kw: '교육', field: 'q3_2' }, { kw: '재무/회계', field: 'q3_3' }, { kw: '법무', field: 'q3_4' }, { kw: '미디어/홍보', field: 'q3_5' }, { kw: '비즈니스전략', field: 'q3_6' }],
-                    group2: [{ kw: '마케팅', field: 'q3_7' }, { kw: '영업', field: 'q3_8' }, { kw: '데이터', field: 'q3_9' }],
-                    group3: [{ kw: '구매', field: 'q3_10' }, { kw: '물류', field: 'q3_11' }, { kw: 'SCM', field: 'q3_12' }],
-                    group4: [{ kw: '기획 및 분석', field: 'q3_13' }, { kw: '빅데이터', field: 'q3_14' }],
-                    group5: [{ kw: '생산', field: 'q3_15' }, { kw: '품질', field: 'q3_16' }],
-                    group6: [{ kw: '연구개발', field: 'q3_17' }, { kw: '엔지니어링', field: 'q3_18' }, { kw: '리서치', field: 'q3_19' }],
-                    group7: [{ kw: '서비스기획', field: 'q3_20' }, { kw: '프론트/백앤드 개발', field: 'q3_21' }, { kw: '정보보안', field: 'q3_22' }],
-                    group8: [{ kw: '디자인', field: 'q3_23' }, { kw: '사업개발', field: 'q3_24' }, { kw: '투자', field: 'q3_25' }, { kw: '기타', field: 'q3_26' }],
-                    // group9: [{ kw: '위의 (1)~(8)에 해당하지 않은 경우, 관심있는 업무/직무나 목표하고 있는 기업/기관이 있으면 이에 대해 간단히 작성해 주시기 바랍니다.', field: 'q3_27' }]
+                    group1: [{ kw: '인사', field: 'q3_1_1' }, { kw: '교육', field: 'q3_1_2' }, { kw: '재무/회계', field: 'q3_1_3' }, { kw: '법무', field: 'q3_1_4' }, { kw: '미디어/홍보', field: 'q3_1_5' }, { kw: '비즈니스전략', field: 'q3_1_6' }],
+                    group2: [{ kw: '마케팅', field: 'q3_2_1' }, { kw: '영업', field: 'q3_2_2' }, { kw: '데이터', field: 'q3_2_3' }],
+                    group3: [{ kw: '구매', field: 'q3_3_1' }, { kw: '물류', field: 'q3_3_2' }, { kw: 'SCM', field: 'q3_3_3' }],
+                    group4: [{ kw: '기획 및 분석', field: 'q3_4_1' }, { kw: '빅데이터', field: 'q3_4_2' }],
+                    group5: [{ kw: '생산', field: 'q3_5_1' }, { kw: '품질', field: 'q3_5_2' }],
+                    group6: [{ kw: '연구개발', field: 'q3_6_1' }, { kw: '엔지니어링', field: 'q3_6_2' }, { kw: '리서치', field: 'q3_6_3' }],
+                    group7: [{ kw: '서비스기획', field: 'q3_7_1' }, { kw: '프론트/백앤드 개발', field: 'q3_7_2' }, { kw: '정보보안', field: 'q3_7_3' }],
+                    group8: [{ kw: '디자인', field: 'q3_8_1' }, { kw: '사업개발', field: 'q3_8_2' }, { kw: '투자', field: 'q3_8_3' }],
+                    group9: [{ kw: '기타', field: 'q3_9' }],
+                    // group9: [{ kw: '위의 (1)~(8)에 해당하지 않은 경우, 관심있는 업무/직무나 목표하고 있는 기업/기관이 있으면 이에 대해 간단히 작성해 주시기 바랍니다.', field: 'q3_8_4' }]
 
                 };
 
                 const q4Groups = {
-                    group1: [{ kw: '급여', field: 'q4_1' }, { kw: '승진기회', field: 'q4_2' }, { kw: '근무환경', field: 'q4_3' }, { kw: '근무시간', field: 'q4_4' }],
-                    group2: [{ kw: '업무량', field: 'q4_5' }, { kw: '업무 난이도', field: 'q4_6' }, { kw: '적은 스트레스', field: 'q4_7' }, { kw: '전공과의 연관성', field: 'q4_8' }],
-                    group3: [{ kw: '나의 비전 및 가치관과의 부합성', field: 'q4_9' }, { kw: '적성과 흥미', field: 'q4_10' }, { kw: '기업브랜드', field: 'q4_11' }],
-                    group4: [{ kw: '미래전망', field: 'q4_12' }, { kw: '취업 및 이직', field: 'q4_13' }, { kw: '매력적인 느낌', field: 'q4_14' }]
+                    group1: [{ kw: '급여', field: 'q4_1_1' }, { kw: '승진기회', field: 'q4_1_2' }, { kw: '근무환경', field: 'q4_1_3' }, { kw: '근무시간', field: 'q4_1_4' }],
+                    group2: [{ kw: '업무량', field: 'q4_2_1' }, { kw: '업무 난이도', field: 'q4_2_2' }, { kw: '적은 스트레스', field: 'q4_2_3' }, { kw: '전공과의 연관성', field: 'q4_2_4' }],
+                    group3: [{ kw: '나의 비전 및 가치관과의 부합성', field: 'q4_3_1' }, { kw: '적성과 흥미', field: 'q4_3_2' }, { kw: '기업브랜드', field: 'q4_3_3' }],
+                    group4: [{ kw: '미래전망', field: 'q4_4_1' }, { kw: '취업 및 이직', field: 'q4_4_2' }, { kw: '매력적인 느낌', field: 'q4_4_3' }]
                 };
                 // Apply conditional logic based on section headers
 
@@ -419,20 +430,20 @@ const PreSurvey = () => {
             item.q2_7_1, item.q2_7_3,
             item.q2_8,
             // Q3
-            item.q3_1, item.q3_2, item.q3_3, item.q3_4, item.q3_5, item.q3_6,
-            item.q3_7, item.q3_8, item.q3_9,
-            item.q3_10, item.q3_11, item.q3_12,
-            item.q3_13, item.q3_14,
-            item.q3_15, item.q3_16,
-            item.q3_17, item.q3_18, item.q3_19,
-            item.q3_20, item.q3_21, item.q3_22,
-            item.q3_23, item.q3_24, item.q3_25,
-            item.q3_26,
+            item.q3_1_1, item.q3_1_2, item.q3_1_3, item.q3_1_4, item.q3_1_5, item.q3_1_6,
+            item.q3_2_1, item.q3_2_2, item.q3_2_3,
+            item.q3_3_1, item.q3_3_2, item.q3_3_3,
+            item.q3_4_1, item.q3_4_2,
+            item.q3_5_1, item.q3_5_2,
+            item.q3_6_1, item.q3_6_2, item.q3_6_3,
+            item.q3_7_1, item.q3_7_2, item.q3_7_3,
+            item.q3_8_1, item.q3_8_2, item.q3_8_3,
+            item.q3_9,
             // Q4
-            item.q4_1, item.q4_2, item.q4_3, item.q4_4,
-            item.q4_5, item.q4_6, item.q4_7, item.q4_8,
-            item.q4_9, item.q4_10, item.q4_11,
-            item.q4_12, item.q4_13, item.q4_14,
+            item.q4_1_1, item.q4_1_2, item.q4_1_3, item.q4_1_4,
+            item.q4_2_1, item.q4_2_2, item.q4_2_3, item.q4_2_4,
+            item.q4_3_1, item.q4_3_2, item.q4_3_3,
+            item.q4_4_1, item.q4_4_2, item.q4_4_3,
             // Q5
             item.q5_1, item.q5_2, item.q5_3, item.q5_4,
             // Q6
@@ -613,8 +624,8 @@ const PreSurvey = () => {
                                 <th>투자</th><th>-</th>
                                 <th>급여</th><th>승진기회</th><th>근무환경</th><th>근무시간</th>
                                 <th>업무량</th><th>업무난이도</th><th>적은스트레스</th><th>전공연관성</th>
-                                <th>비전/가치관부합</th><th>적성과흥미</th><th>기업브랜드</th><th>미래전망</th>
-                                <th>취업및이직</th><th>매력</th>
+                                <th>비전/가치관부합</th><th>적성과흥미</th><th>기업브랜드</th>
+                                <th>미래전망</th><th>취업및이직</th><th>매력</th>
                                 <th>언제</th><th>어디서</th><th>역할</th><th>무엇을</th>
                                 <th>기대하는 점</th>
                             </tr>
@@ -637,16 +648,16 @@ const PreSurvey = () => {
                                     <td className="col-center q-check">{item.q2_5_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_5_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_2 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q2_6_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_3 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q2_8 ? item.q2_8 : ''}</div></td>
                                     {/* Q3 */}
-                                    <td className="col-center q-check">{item.q3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_5 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_6 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q3_7 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_8 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_9 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_10 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_11 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_12 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q3_13 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_14 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_15 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_16 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_17 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_18 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q3_19 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_20 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_21 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_22 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_23 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_24 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q3_25 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q3_26 ? item.q3_26 : ''}</div></td><td className="col-center"><div className="scroll-cell">{item.q3_27 ? item.q3_27 : ''}</div></td>
+                                    <td className="col-center q-check">{item.q3_1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_1_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_1_5 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_1_6 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_2_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_2_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_2_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_3_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_3_3 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_4_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_4_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_5_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_5_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_6_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_6_2 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_6_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_7_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_7_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_7_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_8_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_8_2 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q3_8_3 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q3_9 ? item.q3_9 : ''}</div></td>
                                     {/* Q4 */}
-                                    <td className="col-center q-check">{item.q4_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_4 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q4_5 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_6 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_7 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_8 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q4_9 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_10 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_11 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_12 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q4_13 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_14 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q4_1_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_1_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_1_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_1_4 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q4_2_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_2_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_2_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_2_4 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q4_3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_3_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_3_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_4_1 === '1' ? '1' : ''}</td>
+                                    <td className="col-center q-check">{item.q4_4_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q4_4_3 === '1' ? '1' : ''}</td>
                                     {/* Q5 */}
                                     <td className="col-center"><div className="scroll-cell">{item.q5_1}</div></td><td className="col-center"><div className="scroll-cell">{item.q5_2}</div></td><td className="col-center"><div className="scroll-cell">{item.q5_3}</div></td><td className="col-center"><div className="scroll-cell">{item.q5_4}</div></td>
                                     {/* Q6 */}
