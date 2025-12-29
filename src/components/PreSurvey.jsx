@@ -69,7 +69,6 @@ const PreSurvey = () => {
                         rawMatches.push({ start: m.index, end: regex.lastIndex, field: cfg.field, matchedKW: m[0] });
                     }
                 });
-                // console.log(targetHtml)
                 const uniquePosMap = new Map();
                 rawMatches.forEach(m => {
                     const key = `${m.start}-${m.end}`;
@@ -90,7 +89,7 @@ const PreSurvey = () => {
                     const prevEnd = idx > 0 ? matches[idx - 1].end : 0;
                     const prefix = targetText.substring(prevEnd, m.start);
 
-                    const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑√\s1-3()]*$/);
+                    const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑√✔️o0ㅇ\s1-3()1️⃣2️⃣3️⃣]*$/);
                     const cleanPre = symbolPart ? symbolPart[0].trim() : "";
 
                     const escKW = m.matchedKW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -115,7 +114,7 @@ const PreSurvey = () => {
                     const unitString = `${cleanPre}${m.matchedKW}`;
                     units.push(unitString);
 
-                    const vChars = '[Vv\u2713\u2714√]';
+                    const vChars = '[Vv\u2713\u2714√✔️o0ㅇ1️⃣2️⃣3️⃣]';
                     const checkedChars = '[▣■☑\u25A3\u25A0\u2611]';
                     const boxChars = '[□\u25A1\u2610]';
 
@@ -136,7 +135,6 @@ const PreSurvey = () => {
 
                         if (hRegex.test(targetHtml) || boxMarkRegex.test(targetHtml) || isInputChecked) isChecked = true;
                     }
-                    console.log(targetText)
                     if (/[1-3]/.test(cleanPre)) {
                         isChecked = true;
                     }
@@ -158,6 +156,7 @@ const PreSurvey = () => {
                 const firstTd = clone.querySelector('td');
                 if (firstTd) firstTd.remove();
                 const nodeHtml = clone.innerHTML;
+                console.log(nodeHtml)
                 if (node.tagName.toLowerCase() === 'tr') {
                     cells = Array.from(node.querySelectorAll('td')).map(td => td.innerText.trim());
                     fullText = cells.join(' ');
@@ -169,7 +168,8 @@ const PreSurvey = () => {
                 const checkRowForMark = () => {
                     return cells.some(cell => {
                         const t = cell.trim();
-                        return /^(V|v|■|☑|check|√)$/i.test(t) || t.includes('■') || t.includes('☑') || t.includes('√');
+                        return /^(V|v|■|☑|check|√|✔️|o|0|ㅇ)$/i.test(t) ||
+                            ['■', '☑', '√', '✔️', '1️⃣', '2️⃣', '3️⃣'].some(char => t.includes(char));
                     }) || /<input[^>]+checked/i.test(nodeHtml);
                 };
 
@@ -190,7 +190,7 @@ const PreSurvey = () => {
                 const longKeword = '(5) 위의 ①~④에 해당하지 않은 경우, 컨설팅 신청 이유를 간단히 작성해 주시기 바랍니다.';
                 if (fullText.includes(longKeword) && checkRowForMark()) {
                     let cleanedValue = fullText.replace(longKeword, '');
-                    cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√/gi, '');
+                    cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√|✔️|1️⃣|2️⃣|3️⃣/gi, '');
                     extracted.q1_5 = cleanedValue.trim();
                 }
 
@@ -204,7 +204,7 @@ const PreSurvey = () => {
                         // Remove common prefixes and symbols
                         cleanedValue = cleanedValue.replace(/관심있는 업무\/직무나 목표하고 있는 기업\/기관이 있으면 이에 대해 간단히 작성해 주시기 바랍니다\./gi, '');
                         cleanedValue = cleanedValue.replace(/\(9\)/g, '');
-                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√/gi, '');
+                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√|✔️|1️⃣|2️⃣|3️⃣/gi, '');
                         cleanedValue = cleanedValue.trim();
                         if (cleanedValue) {
                             extracted.q3_9 = cleanedValue;
@@ -219,7 +219,7 @@ const PreSurvey = () => {
                         let cleanedValue = parts[1];
                         // Remove common prefixes and symbols
                         cleanedValue = cleanedValue.replace(/\(8\)/g, '');
-                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√/gi, '');
+                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check|√|✔️|1️⃣|2️⃣|3️⃣/gi, '');
                         cleanedValue = cleanedValue.trim();
                         if (cleanedValue) {
                             extracted.q2_8 = cleanedValue;
