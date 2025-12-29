@@ -64,10 +64,12 @@ const PreSurvey = () => {
                     const regex = new RegExp(flexibleKW, 'gi');
                     let m;
                     while ((m = regex.exec(targetText)) !== null) {
+                        // Ignore if keyword is part of a compound header (e.g. "Marketing/Sales")
+                        if (targetText[regex.lastIndex] === '/') continue;
                         rawMatches.push({ start: m.index, end: regex.lastIndex, field: cfg.field, matchedKW: m[0] });
                     }
                 });
-                console.log(targetHtml)
+                // console.log(targetHtml)
                 const uniquePosMap = new Map();
                 rawMatches.forEach(m => {
                     const key = `${m.start}-${m.end}`;
@@ -88,7 +90,7 @@ const PreSurvey = () => {
                     const prevEnd = idx > 0 ? matches[idx - 1].end : 0;
                     const prefix = targetText.substring(prevEnd, m.start);
 
-                    const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑√\s]*$/);
+                    const symbolPart = prefix.match(/[Vv\u2713\u2714\u25A1\u2610\u25A3\u25A0\u2611▣■☑√\s1-3()]*$/);
                     const cleanPre = symbolPart ? symbolPart[0].trim() : "";
 
                     const escKW = m.matchedKW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -98,7 +100,16 @@ const PreSurvey = () => {
                     const inputCheckboxRegex = new RegExp(`<input[^>]*checked[^>]*>(?:(?!<input).)*?${escKW}`, 'i');
                     const isInputChecked = inputCheckboxRegex.test(targetHtml);
 
-                    // Filter: Ignore if no box symbol found AND not highlighted AND not an HTML checkbox
+                    // Filter: Ignore if it looks like a section header (e.g. "(3) 물류" at start of line)
+                    // Logic: If it's the first match, and the prefix is ONLY the rank indicator (no other text like "경영지원"), it's likely the header.
+                    if (idx === 0 && symbolPart) {
+                        const fullPrefixTrimmed = prefix.trim();
+                        // If the entire prefix consists only of the symbols (e.g. "(3)"), it's a header.
+                        // If there is other text (e.g. "(1) 경영지원 (1)"), full prefix is longer than symbol part.
+                        if (fullPrefixTrimmed === cleanPre && /^\(\d+\)$/.test(cleanPre)) return;
+                    }
+
+                    // Filter: Ignore if no box symbol found AND not highlighted AND not an HTML checkbox AND not a rank number
                     if (!cleanPre && !isMarked && !isInputChecked) return;
 
                     const unitString = `${cleanPre}${m.matchedKW}`;
@@ -124,6 +135,10 @@ const PreSurvey = () => {
                         const boxMarkRegex = new RegExp(`<mark[^>]*>[^<]*?[□\u25A1\u2610][^<]*?<\\/mark>\\s*${escKW}`, 'i');
 
                         if (hRegex.test(targetHtml) || boxMarkRegex.test(targetHtml) || isInputChecked) isChecked = true;
+                    }
+                    console.log(targetText)
+                    if (/[1-3]/.test(cleanPre)) {
+                        isChecked = true;
                     }
 
                     if (isChecked) {
