@@ -1,17 +1,47 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import * as mammoth from 'mammoth';
-import { Upload, Download, FileText, Trash2, List } from 'lucide-react';
+import { Upload, Download, FileText, Trash2, List, BarChart2, Image as ImageIcon } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import html2canvas from 'html2canvas';
 import './EwhaGrid.css';
 
 const PreSurvey = () => {
     const [surveyData, setSurveyData] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [activeTab, setActiveTab] = useState('list'); // 'list' or 'preview'
+    const [activeTab, setActiveTab] = useState('list'); // 'list', 'preview', 'statistics'
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const fileInputRef = useRef(null);
+    const statsRef = useRef(null);
 
-    // --- Parsing Logic ---
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedData = React.useMemo(() => {
+        let sortableItems = [...surveyData];
+        if (sortConfig.key !== null) {
+            sortableItems.sort((a, b) => {
+                const aValue = a[sortConfig.key] || '';
+                const bValue = b[sortConfig.key] || '';
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [surveyData, sortConfig]);
+
+
     const parseDocx = async (file) => {
         try {
             const arrayBuffer = await file.arrayBuffer();
@@ -584,6 +614,9 @@ const PreSurvey = () => {
                 <button className={`tab-btn ${activeTab === 'preview' ? 'active' : ''}`} onClick={() => setActiveTab('preview')}>
                     <FileText size={16} style={{ marginRight: '6px' }} /> 원본 문서 (미리보기)
                 </button>
+                <button className={`tab-btn ${activeTab === 'statistics' ? 'active' : ''}`} onClick={() => setActiveTab('statistics')}>
+                    <BarChart2 size={16} style={{ marginRight: '6px' }} /> 통계 차트
+                </button>
             </div>
 
             {activeTab === 'list' ? (
@@ -594,10 +627,18 @@ const PreSurvey = () => {
                             <tr>
                                 <th rowSpan="2" style={{ minWidth: '50px' }}>No</th>
                                 <th rowSpan="2" style={{ minWidth: '120px' }}>컨설팅 일자</th>
-                                <th rowSpan="2" style={{ minWidth: '100px' }}>단과대학</th>
-                                <th rowSpan="2" style={{ minWidth: '120px' }}>전공</th>
-                                <th rowSpan="2" style={{ minWidth: '100px' }}>학번</th>
-                                <th rowSpan="2" style={{ minWidth: '100px' }}>이름</th>
+                                <th rowSpan="2" style={{ minWidth: '100px', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('college')}>
+                                    단과대학 {sortConfig.key === 'college' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </th>
+                                <th rowSpan="2" style={{ minWidth: '120px', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('dept')}>
+                                    전공 {sortConfig.key === 'dept' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </th>
+                                <th rowSpan="2" style={{ minWidth: '100px', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('studentId')}>
+                                    학번 {sortConfig.key === 'studentId' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </th>
+                                <th rowSpan="2" style={{ minWidth: '100px', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
+                                    이름 {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </th>
 
                                 <th>1-(1)</th><th>1-(2)</th><th>1-(3)</th><th>1-(4)</th><th>1-(5)</th>
                                 <th colSpan="4">2-(1) 대학생활</th>
@@ -646,7 +687,7 @@ const PreSurvey = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {surveyData.map((item, idx) => (
+                            {sortedData.map((item, idx) => (
                                 <tr key={idx}>
                                     <td className="col-center">{idx + 1}</td>
                                     <td className="col-center">{item.consultDate || '-'}</td>
@@ -685,7 +726,7 @@ const PreSurvey = () => {
                         </tbody>
                     </table>
                 </div>
-            ) : (
+            ) : activeTab === 'preview' ? (
                 <div className="preview-container">
                     {surveyData.map((item, idx) => (
                         <div key={idx} className="preview-item" style={{ background: 'white', borderRadius: '12px', padding: '30px', marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
@@ -694,12 +735,164 @@ const PreSurvey = () => {
                         </div>
                     ))}
                 </div>
+            ) : (
+                <div className="statistics-container" ref={statsRef} style={{ background: 'white', padding: '3rem', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                    <h2 style={{ color: '#00462A', marginBottom: '2rem', textAlign: 'center', fontSize: '1.8rem', fontWeight: 'bold' }}>설문 통계 분석</h2>
+                    {surveyData.length > 0 ? (
+                        <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '3rem' }}>
+                            {/* Q1 Chart */}
+                            <div className="chart-item" style={{ border: '1px solid #eee', borderRadius: '8px', padding: '1.5rem' }}>
+                                <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.2rem', fontWeight: 'bold' }}>Q1. 컨설팅 신청 목적</h3>
+                                <ResponsiveContainer width="100%" height={350}>
+                                    <BarChart data={[
+                                        { name: '자기탐색', value: surveyData.filter(d => d.q1_1 === '1').length },
+                                        { name: '진로선택', value: surveyData.filter(d => d.q1_2 === '1').length },
+                                        { name: '취업정보', value: surveyData.filter(d => d.q1_3 === '1').length },
+                                        { name: '전략수립', value: surveyData.filter(d => d.q1_4 === '1').length },
+                                        { name: '기타', value: surveyData.filter(d => d.q1_5).length }
+                                    ]}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                        <XAxis dataKey="name" tick={{ fontSize: 13 }} interval={0} />
+                                        <YAxis allowDecimals={false} />
+                                        <Tooltip cursor={{ fill: '#f8f9fa' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                                        <Bar dataKey="value" fill="#00462A" barSize={50} radius={[4, 4, 0, 0]} label={{ position: 'top', fill: '#333', fontSize: 13 }} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                            {/* Q2 Chart */}
+                            <div className="chart-item" style={{ border: '1px solid #eee', borderRadius: '8px', padding: '1.5rem' }}>
+                                <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.2rem', fontWeight: 'bold' }}>Q2. 진로 준비 활동 (세부 항목)</h3>
+                                <ResponsiveContainer width="100%" height={600}>
+                                    <BarChart layout="vertical" data={[
+                                        { name: '학점관리', value: surveyData.filter(d => d.q2_1_1 === '1').length },
+                                        { name: '인/적성검사', value: surveyData.filter(d => d.q2_1_2 === '1').length },
+                                        { name: '진로상담', value: surveyData.filter(d => d.q2_1_3 === '1').length },
+                                        { name: '멘토링', value: surveyData.filter(d => d.q2_1_4 === '1').length },
+                                        { name: '공인어학', value: surveyData.filter(d => d.q2_2_1 === '1').length },
+                                        { name: '어학회화', value: surveyData.filter(d => d.q2_2_2 === '1').length },
+                                        { name: '컴퓨터자격', value: surveyData.filter(d => d.q2_3_1 === '1').length },
+                                        { name: '직무자격', value: surveyData.filter(d => d.q2_3_2 === '1').length },
+                                        { name: '현장실습', value: surveyData.filter(d => d.q2_4_1 === '1').length },
+                                        { name: '아르바이트', value: surveyData.filter(d => d.q2_4_2 === '1').length },
+                                        { name: '봉사(일경험)', value: surveyData.filter(d => d.q2_4_3 === '1').length },
+                                        { name: '어학연수', value: surveyData.filter(d => d.q2_5_1 === '1').length },
+                                        { name: '교환학생', value: surveyData.filter(d => d.q2_5_2 === '1').length },
+                                        { name: '해외인턴', value: surveyData.filter(d => d.q2_5_3 === '1').length },
+                                        { name: '동아리', value: surveyData.filter(d => d.q2_6_1 === '1').length },
+                                        { name: '봉사(자치)', value: surveyData.filter(d => d.q2_6_2 === '1').length },
+                                        { name: '학생회', value: surveyData.filter(d => d.q2_6_3 === '1').length },
+                                        { name: '학회', value: surveyData.filter(d => d.q2_6_4 === '1').length },
+                                        { name: '공모전', value: surveyData.filter(d => d.q2_7_1 === '1').length },
+                                        { name: '경진대회', value: surveyData.filter(d => d.q2_7_3 === '1').length },
+                                        { name: '기타', value: surveyData.filter(d => d.q2_8).length }
+                                    ]}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                        <XAxis type="number" allowDecimals={false} />
+                                        <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 13 }} interval={0} />
+                                        <Tooltip cursor={{ fill: '#f8f9fa' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                                        <Bar dataKey="value" fill="#2d6a4f" barSize={18} radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#333', fontSize: 12 }} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                            {/* Q3 Chart */}
+                            <div className="chart-item" style={{ border: '1px solid #eee', borderRadius: '8px', padding: '1.5rem' }}>
+                                <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.2rem', fontWeight: 'bold' }}>Q3. 희망 분야 (세부 항목)</h3>
+                                <ResponsiveContainer width="100%" height={700}>
+                                    <BarChart layout="vertical" data={[
+                                        { name: '인사', value: surveyData.filter(d => d.q3_1_1 === '1').length },
+                                        { name: '교육', value: surveyData.filter(d => d.q3_1_2 === '1').length },
+                                        { name: '재무/회계', value: surveyData.filter(d => d.q3_1_3 === '1').length },
+                                        { name: '법무', value: surveyData.filter(d => d.q3_1_4 === '1').length },
+                                        { name: '홍보', value: surveyData.filter(d => d.q3_1_5 === '1').length },
+                                        { name: '전략', value: surveyData.filter(d => d.q3_1_6 === '1').length },
+                                        { name: '마케팅', value: surveyData.filter(d => d.q3_2_1 === '1').length },
+                                        { name: '영업', value: surveyData.filter(d => d.q3_2_2 === '1').length },
+                                        { name: '데이터(마케팅)', value: surveyData.filter(d => d.q3_2_3 === '1').length },
+                                        { name: '구매', value: surveyData.filter(d => d.q3_3_1 === '1').length },
+                                        { name: '물류', value: surveyData.filter(d => d.q3_3_2 === '1').length },
+                                        { name: 'SCM', value: surveyData.filter(d => d.q3_3_3 === '1').length },
+                                        { name: '기획/분석', value: surveyData.filter(d => d.q3_4_1 === '1').length },
+                                        { name: '빅데이터', value: surveyData.filter(d => d.q3_4_2 === '1').length },
+                                        { name: '생산', value: surveyData.filter(d => d.q3_5_1 === '1').length },
+                                        { name: '품질', value: surveyData.filter(d => d.q3_5_2 === '1').length },
+                                        { name: '연구개발', value: surveyData.filter(d => d.q3_6_1 === '1').length },
+                                        { name: '엔지니어링', value: surveyData.filter(d => d.q3_6_2 === '1').length },
+                                        { name: '리서치', value: surveyData.filter(d => d.q3_6_3 === '1').length },
+                                        { name: '서비스기획', value: surveyData.filter(d => d.q3_7_1 === '1').length },
+                                        { name: '개발', value: surveyData.filter(d => d.q3_7_2 === '1').length },
+                                        { name: '정보보안', value: surveyData.filter(d => d.q3_7_3 === '1').length },
+                                        { name: '디자인', value: surveyData.filter(d => d.q3_8_1 === '1').length },
+                                        { name: '사업개발', value: surveyData.filter(d => d.q3_8_2 === '1').length },
+                                        { name: '투자', value: surveyData.filter(d => d.q3_8_3 === '1').length },
+                                        { name: '기타', value: surveyData.filter(d => d.q3_9).length }
+                                    ]}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                        <XAxis type="number" allowDecimals={false} />
+                                        <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 13 }} interval={0} />
+                                        <Tooltip cursor={{ fill: '#f8f9fa' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                                        <Bar dataKey="value" fill="#40916c" barSize={18} radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#333', fontSize: 12 }} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                            {/* Q4 Chart */}
+                            <div className="chart-item" style={{ border: '1px solid #eee', borderRadius: '8px', padding: '1.5rem' }}>
+                                <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.2rem', fontWeight: 'bold' }}>Q4. 직업 선택 기준 (세부 항목)</h3>
+                                <ResponsiveContainer width="100%" height={450}>
+                                    <BarChart layout="vertical" data={[
+                                        { name: '급여', value: surveyData.filter(d => d.q4_1_1 === '1').length },
+                                        { name: '승진기회', value: surveyData.filter(d => d.q4_1_2 === '1').length },
+                                        { name: '근무환경', value: surveyData.filter(d => d.q4_1_3 === '1').length },
+                                        { name: '근무시간', value: surveyData.filter(d => d.q4_1_4 === '1').length },
+                                        { name: '업무량', value: surveyData.filter(d => d.q4_2_1 === '1').length },
+                                        { name: '난이도', value: surveyData.filter(d => d.q4_2_2 === '1').length },
+                                        { name: '스트레스', value: surveyData.filter(d => d.q4_2_3 === '1').length },
+                                        { name: '전공연관', value: surveyData.filter(d => d.q4_2_4 === '1').length },
+                                        { name: '비전', value: surveyData.filter(d => d.q4_3_1 === '1').length },
+                                        { name: '적성/흥미', value: surveyData.filter(d => d.q4_3_2 === '1').length },
+                                        { name: '브랜드', value: surveyData.filter(d => d.q4_3_3 === '1').length },
+                                        { name: '미래전망', value: surveyData.filter(d => d.q4_4_1 === '1').length },
+                                        { name: '취업/이직', value: surveyData.filter(d => d.q4_4_2 === '1').length },
+                                        { name: '매력', value: surveyData.filter(d => d.q4_4_3 === '1').length }
+                                    ]}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                        <XAxis type="number" allowDecimals={false} />
+                                        <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 13 }} interval={0} />
+                                        <Tooltip cursor={{ fill: '#f8f9fa' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                                        <Bar dataKey="value" fill="#52b788" barSize={18} radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#333', fontSize: 12 }} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    ) : (
+                        <p style={{ textAlign: 'center', color: '#888', marginTop: '2rem' }}>데이터가 없습니다.</p>
+                    )}
+                </div>
             )}
 
-            <div className="button-container">
-                <input type="file" multiple ref={fileInputRef} onChange={handleFileUpload} accept=".docx" style={{ display: 'none' }} />
-                <button className="ewha-btn outline" onClick={() => fileInputRef.current.click()}><Upload size={16} /> 파일 업로드</button>
-                <button className="ewha-btn" onClick={handleDownload} disabled={surveyData.length === 0}><Download size={16} /> 엑셀 다운로드</button>
+            <div className="button-container" style={{ justifyContent: activeTab === 'statistics' ? 'flex-end' : 'space-between' }}>
+                {activeTab !== 'statistics' ? (
+                    <>
+                        <input type="file" multiple ref={fileInputRef} onChange={handleFileUpload} accept=".docx" style={{ display: 'none' }} />
+                        <button className="ewha-btn outline" onClick={() => fileInputRef.current.click()}><Upload size={16} /> 파일 업로드</button>
+                        <button className="ewha-btn" onClick={handleDownload} disabled={surveyData.length === 0}><Download size={16} /> 엑셀 다운로드</button>
+                    </>
+                ) : (
+                    <button className="ewha-btn" onClick={() => {
+                        if (statsRef.current) {
+                            html2canvas(statsRef.current, { scale: 2 }).then(canvas => {
+                                const link = document.createElement('a');
+                                link.download = 'survey_statistics.png';
+                                link.href = canvas.toDataURL();
+                                link.click();
+                            });
+                        }
+                    }} disabled={surveyData.length === 0}>
+                        <ImageIcon size={16} /> 통계 이미지 저장
+                    </button>
+                )}
             </div>
         </div>
     );
