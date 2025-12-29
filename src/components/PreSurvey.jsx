@@ -186,6 +186,21 @@ const PreSurvey = () => {
                         }
                     }
                 }
+                const q2_8Keyword = '(8) 위의 (1)~(7)에 해당하지 않은 경우, 실제 실행해 보았던 사항을 간단히 작성해 주시기 바랍니다.';
+                if (fullText.includes(q2_8Keyword)) {
+                    // Extract text after the keyword
+                    const parts = fullText.split(q2_8Keyword);
+                    if (parts.length > 1) {
+                        let cleanedValue = parts[1];
+                        // Remove common prefixes and symbols
+                        cleanedValue = cleanedValue.replace(/\(8\)/g, '');
+                        cleanedValue = cleanedValue.replace(/V|v|■|☑|□|check/gi, '');
+                        cleanedValue = cleanedValue.trim();
+                        if (cleanedValue) {
+                            extracted.q2_8 = cleanedValue;
+                        }
+                    }
+                }
                 // --- Categorized Configuration ---
                 const q2Groups = {
                     group1: [{ kw: '학점 관리', field: 'q2_1_1' }, { kw: '인/적성검사', field: 'q2_1_2' }, { kw: '진로상담', field: 'q2_1_3' }, { kw: '선배 및 현직자 등 멘토링 참여', field: 'q2_1_4' }],
@@ -620,7 +635,7 @@ const PreSurvey = () => {
                                     <td className="col-center q-check">{item.q2_2_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_2_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_3_2 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q2_4_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_4_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_4_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_5_1 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q2_5_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_5_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_2 === '1' ? '1' : ''}</td>
-                                    <td className="col-center q-check">{item.q2_6_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_3 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q2_8}</div></td>
+                                    <td className="col-center q-check">{item.q2_6_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_6_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q2_7_3 === '1' ? '1' : ''}</td><td className="col-center"><div className="scroll-cell">{item.q2_8 ? item.q2_8 : ''}</div></td>
                                     {/* Q3 */}
                                     <td className="col-center q-check">{item.q3_1 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_2 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_3 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_4 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_5 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_6 === '1' ? '1' : ''}</td>
                                     <td className="col-center q-check">{item.q3_7 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_8 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_9 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_10 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_11 === '1' ? '1' : ''}</td><td className="col-center q-check">{item.q3_12 === '1' ? '1' : ''}</td>

@@ -2,7 +2,7 @@
   "name": "ewha-consulting-analytics",
   "productName": "이화여대 컨설팅 분석",
   "private": true,
-  "version": "4.0.0",
+  "version": "5.1.0",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
