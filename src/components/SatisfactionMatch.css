@@ -183,7 +183,7 @@
     top: 0;
     background: #f8f9fa;
     padding: 12px 16px;
-    text-align: left;
+    text-align: center;
     font-size: 0.85rem;
     font-weight: 600;
     color: #555;
@@ -212,6 +212,7 @@
     border-bottom: 1px solid #f0f0f0;
     color: #333;
     font-size: 0.9rem;
+    text-align: center;
 }
 
 .comparison-table tr:hover {
@@ -249,4 +250,26 @@
     height: 100%;
     color: #999;
     gap: 12px;
+}
+
+/* New Styles for Data Content within Cells */
+.data-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.reference-data {
+    font-size: 0.8em;
+    color: #666;
+    /* Default color for reference data */
+}
+
+/* Ensure mismatch cells style their children correctly if needed, 
+   though the parent .mismatch-cell color usually cascades. 
+   We can enforce specifically if desired. */
+.mismatch-cell .student-data {
+    color: #c62828;
+    font-weight: 600;
 }
