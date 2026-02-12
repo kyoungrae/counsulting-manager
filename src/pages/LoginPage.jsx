@@ -28,7 +28,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!userId || !password) {
+    if (!userId.trim() || !password) {
       setError('아이디와 비밀번호를 입력해주세요.')
       return
     }
@@ -79,13 +79,13 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label className="form-label">아이디 또는 이메일</label>
+            <label className="form-label">아이디</label>
             <div className="form-input-wrap">
               <User size={18} className="form-input-icon" />
               <input
                 type="text"
                 className="form-input form-input--with-icon"
-                placeholder="아이디 또는 이메일을 입력하세요"
+                placeholder="아이디를 입력하세요"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 disabled={loading}
