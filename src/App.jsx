@@ -1,23 +1,28 @@
-import { useState } from 'react'
-import EwhaGrid from './components/EwhaGrid'
-import Sidebar from './components/Sidebar'
-import SatisfactionMatch from './components/SatisfactionMatch'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
+import { ProtectedRoute } from './routes/ProtectedRoute'
+import LoginPage from './pages/LoginPage'
+import AppMain from './AppMain'
 import './App.css'
 
 function App() {
-  const [activeMenu, setActiveMenu] = useState('진로개발');
-
   return (
-    <div className="app-container">
-      <Sidebar activeMenu={activeMenu} onMenuClick={setActiveMenu} />
-      <main className="main-content">
-        {activeMenu === '만족도 일치여부' ? (
-          <SatisfactionMatch />
-        ) : (
-          <EwhaGrid title={activeMenu} />
-        )}
-      </main>
-    </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <AppMain />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
 

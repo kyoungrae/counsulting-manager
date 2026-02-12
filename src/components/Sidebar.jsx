@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, GraduationCap, Users, FileText, BarChart2, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, GraduationCap, Users, FileText, BarChart2, AlertCircle, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = ({ activeMenu, onMenuClick }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const { logout } = useAuth();
+    const navigate = useNavigate();
 
     const menuItems = [
         { id: 'career-dev', label: '진로개발', icon: <GraduationCap size={20} /> },
@@ -43,6 +47,17 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
                     </li>
                 ))}
             </ul>
+            <div className="sidebar-footer">
+                <button
+                    type="button"
+                    className="sidebar-logout"
+                    onClick={() => { logout(); navigate('/login'); }}
+                    title="로그아웃"
+                >
+                    <LogOut size={20} />
+                    {!isCollapsed && <span>로그아웃</span>}
+                </button>
+            </div>
         </nav>
     );
 };
