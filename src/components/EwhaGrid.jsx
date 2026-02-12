@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Download, Upload, X } from 'lucide-react';
+import { Download, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import './EwhaGrid.css';
 import EwhaChart from './EwhaChart';
 import RestrictionView from './RestrictionView';
@@ -143,46 +143,51 @@ const EwhaGrid = ({ title }) => {
             }
 
             const mappedData = jsonData.map((item, index) => {
+                const getVal = (k) => String(item[k] || '').trim();
+
                 let row = {
                     id: index,
                     no: item['No'] || item['no'] || index + 1,
-                    date: item['신청일'] || '',
-                    college: item['대학'] || '',
-                    dept: item['학과'] || '',
-                    grade: item['학년'] || '',
-                    studentId: item['학번'] || '',
-                    name: item['이름'] || ''
+                    date: getVal('신청일'),
+                    college: getVal('대학'),
+                    dept: getVal('학과'),
+                    grade: getVal('학년'),
+                    studentId: getVal('학번'),
+                    name: getVal('이름')
                 };
 
                 if (isCorrection) {
                     row = {
                         ...row,
-                        major: item['전공'] || '',
-                        status: item['학적'] || '',
-                        type: item['상담구분'] || '',
-                        request: item['요청내용'] || '',
-                        consultant: item['컨설턴트'] || '',
-                        completeDate: item['완료일자'] || '',
-                        answerStatus: item['답변상태'] || ''
+                        major: getVal('전공'),
+                        status: getVal('학적'),
+                        type: getVal('상담구분'),
+                        request: getVal('요청내용'),
+                        consultant: getVal('컨설턴트'),
+                        completeDate: getVal('완료일자'),
+                        answerStatus: getVal('답변상태')
                     };
                 } else {
                     row = {
                         ...row,
-                        status: item['학적'] || '',
-                        type: item['상담분류'] || '',
-                        consultant: item['상담사'] || '',
-                        consultDate: item['컨설팅일자'] || '',
-                        attend: item['참석여부'] || '',
-                        state: item['상담상태'] || ''
+                        status: getVal('학적'),
+                        type: getVal('상담분류'),
+                        consultant: getVal('상담사'),
+                        consultDate: getVal('컨설팅일자'),
+                        attend: getVal('참석여부'),
+                        state: getVal('상담상태')
                     };
                 }
 
                 // Heuristic for column shift
                 const studentIdPattern = /^[A-Za-z0-9]{5,}$/;
                 const phonePattern = /^010[-.]?\d{4}[-.]?\d{4}$/;
-                if (item['학년'] && String(item['학년']).match(studentIdPattern) && item['이름'] && String(item['이름']).match(phonePattern)) {
-                    row.studentId = item['학년'];
-                    row.name = item['학번'];
+                const checkGrade = String(item['학년'] || '');
+                const checkName = String(item['이름'] || '');
+
+                if (checkGrade && checkGrade.match(studentIdPattern) && checkName && checkName.match(phonePattern)) {
+                    row.studentId = checkGrade.trim();
+                    row.name = item['학번'] ? String(item['학번']).trim() : '';
                     row.grade = '';
                 }
                 return row;
@@ -396,15 +401,33 @@ const EwhaGrid = ({ title }) => {
                         </select>
                         {itemsPerPage !== 'ALL' && (
                             <div className="page-navigation">
-                                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button>
-                                <span>{currentPage} / {totalPages}</span>
-                                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button>
+                                <button
+                                    className="page-btn"
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    title="이전 페이지"
+                                >
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <div className="page-info">
+                                    <span className="current-page">{currentPage}</span>
+                                    <span className="divider">/</span>
+                                    <span className="total-pages">{totalPages}</span>
+                                </div>
+                                <button
+                                    className="page-btn"
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    title="다음 페이지"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
                             </div>
                         )}
                     </div>
 
-                    <div className="grid-wrapper">
-                        <div className="grid-header" style={{ gridTemplateColumns: `repeat(${currentColumns.length}, 1fr)` }}>
+                    <div className={`grid-wrapper ${isCorrection ? 'job-grid' : 'jinro-grid'}`}>
+                        <div className="grid-header" style={{ gridTemplateColumns: `repeat(${currentColumns.length}, minmax(0, 1fr))` }}>
                             {currentColumns.map(col => (
                                 <span key={col.key} onClick={() => requestSort(col.key)}>
                                     {col.label}{getSortIndicator(col.key)}
@@ -412,8 +435,10 @@ const EwhaGrid = ({ title }) => {
                             ))}
                         </div>
                         {paginatedData.length > 0 ? paginatedData.map(item => (
-                            <div key={item.id} className="grid-row" style={{ gridTemplateColumns: `repeat(${currentColumns.length}, 1fr)` }}>
-                                {currentColumns.map(col => <div key={col.key} className="col-center">{item[col.key]}</div>)}
+                            <div key={item.id} className="grid-row" style={{ gridTemplateColumns: `repeat(${currentColumns.length}, minmax(0, 1fr))` }}>
+                                {currentColumns.map(col => (
+                                    <div key={col.key} className="col-center text-truncate">{item[col.key]}</div>
+                                ))}
                             </div>
                         )) : <div className="no-data">데이터가 없습니다.</div>}
                     </div>

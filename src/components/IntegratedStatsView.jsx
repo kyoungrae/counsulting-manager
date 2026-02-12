@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { Download, Upload, X } from 'lucide-react';
+import { Download, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import './EwhaGrid.css';
 import EwhaChart from './EwhaChart';
 
@@ -496,15 +496,35 @@ const IntegratedStatsView = ({ careerList, interviewList, correctionList }) => {
                             <option value="ALL">ALL</option>
                             {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}개씩</option>)}
                         </select>
-                        <div className="page-navigation">
-                            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button>
-                            <span>{currentPage} / {totalPages}</span>
-                            <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button>
-                        </div>
+                        {itemsPerPage !== 'ALL' && (
+                            <div className="page-navigation">
+                                <button
+                                    className="page-btn"
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    title="이전 페이지"
+                                >
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <div className="page-info">
+                                    <span className="current-page">{currentPage}</span>
+                                    <span className="divider">/</span>
+                                    <span className="total-pages">{totalPages}</span>
+                                </div>
+                                <button
+                                    className="page-btn"
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    title="다음 페이지"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="grid-wrapper">
-                        <div className="grid-header" style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}>
+                    <div className="grid-wrapper jinro-grid">
+                        <div className="grid-header" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
                             {columns.map(c => (
                                 <span key={c.key} onClick={() => requestSort(c.key)} style={{ cursor: 'pointer' }}>
                                     {c.label}{getSortIndicator(c.key)}
@@ -512,8 +532,8 @@ const IntegratedStatsView = ({ careerList, interviewList, correctionList }) => {
                             ))}
                         </div>
                         {paginatedData.length > 0 ? paginatedData.map((item, idx) => (
-                            <div key={idx} className="grid-row" style={{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }}>
-                                {columns.map(col => <div key={col.key} className="col-center">{item[col.key] || '-'}</div>)}
+                            <div key={idx} className="grid-row" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+                                {columns.map(col => <div key={col.key} className="col-center text-truncate">{item[col.key] || '-'}</div>)}
                             </div>
                         )) : <div className="no-data">데이터가 없습니다.</div>}
                     </div>
@@ -648,15 +668,15 @@ const IntegratedStatsView = ({ careerList, interviewList, correctionList }) => {
                     </div>
                     {/* Modal for Detailed Grid */}
                     <Modal show={modalConfig.show} title={modalConfig.title} onClose={() => setModalConfig({ ...modalConfig, show: false })}>
-                        <div className="grid-wrapper">
-                            <div className="grid-header" style={{ gridTemplateColumns: `repeat(${(modalConfig.columns || columns).length}, 1fr)` }}>
+                        <div className="grid-wrapper jinro-grid">
+                            <div className="grid-header" style={{ gridTemplateColumns: `repeat(${(modalConfig.columns || columns).length}, minmax(0, 1fr))` }}>
                                 {(modalConfig.columns || columns).map(col => (
                                     <span key={col.key}>{col.label}</span>
                                 ))}
                             </div>
                             {modalConfig.data.length > 0 ? modalConfig.data.map((item, idx) => (
-                                <div key={idx} className="grid-row" style={{ gridTemplateColumns: `repeat(${(modalConfig.columns || columns).length}, 1fr)` }}>
-                                    {(modalConfig.columns || columns).map(col => <div key={col.key} className="col-center">{item[col.key] || '-'}</div>)}
+                                <div key={idx} className="grid-row" style={{ gridTemplateColumns: `repeat(${(modalConfig.columns || columns).length}, minmax(0, 1fr))` }}>
+                                    {(modalConfig.columns || columns).map(col => <div key={col.key} className="col-center text-truncate">{item[col.key] || '-'}</div>)}
                                 </div>
                             )) : <div className="no-data">데이터가 없습니다.</div>}
                         </div>

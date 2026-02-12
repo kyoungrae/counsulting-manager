@@ -721,7 +721,7 @@ const PreSurvey = () => {
                                 </tr>
                             ))}
                             {surveyData.length === 0 && (
-                                <tr><td colSpan="100" style={{ textAlign: 'center', padding: '50px', color: '#888' }}>업로드된 데이터가 없습니다.</td></tr>
+                                <tr><td colSpan="100" style={{ textAlign: 'left', padding: '50px', color: '#888' }}>업로드된 데이터가 없습니다.</td></tr>
                             )}
                         </tbody>
                     </table>

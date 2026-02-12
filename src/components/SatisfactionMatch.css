@@ -182,7 +182,7 @@
     position: sticky;
     top: 0;
     background: #f8f9fa;
-    padding: 12px 16px;
+    padding: 6px 12px;
     text-align: center;
     font-size: 0.85rem;
     font-weight: 600;
@@ -208,7 +208,7 @@
 }
 
 .comparison-table td {
-    padding: 12px 16px;
+    padding: 6px 12px;
     border-bottom: 1px solid #f0f0f0;
     color: #333;
     font-size: 0.9rem;
@@ -256,7 +256,7 @@
 .data-content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0px;
     align-items: center;
 }
 
