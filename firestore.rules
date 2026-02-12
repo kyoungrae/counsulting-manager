@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 로그인 시 아이디로 사용자 조회해야 해서 읽기 허용 (내부 앱 전용)
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

@@ -18,6 +18,11 @@
   padding: 0;
 }
 
+html,
+body {
+  width: 100%;
+  min-height: 100vh;
+}
 
 body {
   font-family: var(--font-sans);
@@ -29,6 +34,7 @@ body {
 
 #root {
   min-height: 100vh;
+  width: 100%;
   display: flex;
 }
 
@@ -75,12 +81,14 @@ button {
 /* ===== LOGIN PAGE (이화 컨설팅 분석) ===== */
 .login-container {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
   background: linear-gradient(135deg, #e6f7ef 0%, #fff 50%, #e6f7ef 100%);
+  box-sizing: border-box;
 }
 
 .login-container--analytics {
@@ -359,6 +367,12 @@ button {
 
 .login-home-wrap {
   margin-top: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* 로그인 카드+홈 버튼을 하나의 블록으로 화면 정중앙에 배치 */
+.login-container .login-card {
+  flex-shrink: 0;
 }
 
 .login-home-btn {
