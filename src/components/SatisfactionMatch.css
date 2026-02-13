@@ -236,6 +236,15 @@
     color: #c62828;
 }
 
+.status-duplicate {
+    background-color: #fff3e0;
+    color: #e65100;
+}
+
+.duplicate-row {
+    background-color: #fffdf9;
+}
+
 .mismatch-cell {
     color: #c62828;
     background-color: #fff8f8;

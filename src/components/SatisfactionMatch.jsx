@@ -165,6 +165,7 @@ const SatisfactionMatch = () => {
 
             if (name || studentId) {
                 results.push({
+                    id: i, // 고유 식별자 추가
                     name,
                     studentId,
                     type,
@@ -426,6 +427,8 @@ const SatisfactionMatch = () => {
 
             // 응답데이터 기준으로 비교 (학번을 고유 식별값으로 사용)
             const results = [];
+            const usedRefIds = new Set(); // 이미 매칭된 기준데이터 ID 추적
+
             studMapByStudentId.forEach((studResponses, studentId) => {
                 const refRecords = refMapByStudentId.get(studentId) || [];
 
@@ -485,7 +488,21 @@ const SatisfactionMatch = () => {
                     const counselorMatch = bestMatch &&
                         normalizeCounselorName(bestMatch.counselor) === normalizeCounselorName(studResp.counselor);
 
-                    const isMatch = finalNameMatch && typeMatch && dateMatch && counselorMatch;
+                    let isMatch = finalNameMatch && typeMatch && dateMatch && counselorMatch;
+                    let status = isMatch ? 'MATCH' : 'MISMATCH';
+
+                    // 중복 응답 처리: 이미 매칭된 기준데이터인 경우
+                    if (bestMatch && usedRefIds.has(bestMatch.id)) {
+                        status = 'DUPLICATE';
+                        isMatch = false; // 중복인 경우 불일치로 간주하거나 별도 처리
+                    } else if (bestMatch && isMatch) {
+                        // 일치하는 경우 해당 기준 데이터는 사용된 것으로 표시
+                        usedRefIds.add(bestMatch.id);
+                    } else if (bestMatch) {
+                        // 불일치하더라도 가장 유사한 항목으로 일단 점유 처리 (다른 응답이 가로채지 못하게)
+                        // 단, 점유를 원치 않는다면 이 부분은 조정 가능
+                        usedRefIds.add(bestMatch.id);
+                    }
 
                     // 디버깅: 상담사 데이터 확인
                     if (!studResp.counselor && studResp.rawRow) {
@@ -500,7 +517,7 @@ const SatisfactionMatch = () => {
                     results.push({
                         student: studResp,
                         reference: bestMatch || {},
-                        status: isMatch ? 'MATCH' : 'MISMATCH',
+                        status: status,
                         matchDetails: {
                             name: finalNameMatch,
                             studentId: true, // 학번으로 매칭했으므로 항상 true
@@ -907,11 +924,15 @@ const SatisfactionMatch = () => {
                                     };
 
                                     return (
-                                        <tr key={idx}>
+                                        <tr key={idx} className={row.status === 'DUPLICATE' ? 'duplicate-row' : ''}>
                                             <td>{idx + 1}</td>
                                             <td>
-                                                <span className={`status-badge ${row.status === 'MATCH' ? 'status-match' : 'status-mismatch'}`}>
-                                                    {row.status === 'MATCH' ? '일치' : '불일치'}
+                                                <span className={`status-badge ${row.status === 'MATCH' ? 'status-match' :
+                                                        row.status === 'DUPLICATE' ? 'status-duplicate' :
+                                                            'status-mismatch'
+                                                    }`}>
+                                                    {row.status === 'MATCH' ? '일치' :
+                                                        row.status === 'DUPLICATE' ? '중복 의심' : '불일치'}
                                                 </span>
                                             </td>
                                             <td className={!row.matchDetails.name ? 'mismatch-cell' : ''}>
