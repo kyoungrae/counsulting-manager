@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Upload, FileText, CheckCircle, XCircle, AlertTriangle, Download, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import * as XLSXStyle from 'xlsx-js-style';
 import './SatisfactionMatch.css';
 
 const SatisfactionMatch = () => {
@@ -350,6 +351,14 @@ const SatisfactionMatch = () => {
     const checkTypeMatch = (type1, type2) => {
         if (!type1 || !type2) return false;
 
+        // 서면첨삭 + 국문/영문: 위치와 상관없이 동일 유형으로 인식
+        if (/서면첨삭/.test(type1) && /서면첨삭/.test(type2)) {
+            const has1 = /국문|영문/.test(type1);
+            const has2 = /국문|영문/.test(type2);
+            if (has1 && has2) return true;
+            if (!has1 && !has2) return true; // 둘 다 "서면첨삭"만 있는 경우
+        }
+
         const parseType = (s) => {
             const t = String(s).replace(/\s+/g, ' ').trim();
             const match = t.match(/^(.+?)[(\-\（\－](.+?)[)\）]?$/);
@@ -366,9 +375,6 @@ const SatisfactionMatch = () => {
             // "서류면접-이공계" vs "서류면접" → 불일치 (세부분류 있음 vs 없음)
             const isGeneral = (s) => !s || /^일반$/i.test(s);
             if (isGeneral(p1.suffix) && isGeneral(p2.suffix)) return true;
-
-            // 서면첨삭: 국문/영문 포함 시 동일 유형으로 인식
-            if (/서면첨삭/.test(p1.base) && p1.suffix && p2.suffix && /국문|영문/.test(p1.suffix) && /국문|영문/.test(p2.suffix)) return true;
 
             return (p1.suffix || '') === (p2.suffix || '');
         }
@@ -767,10 +773,61 @@ const SatisfactionMatch = () => {
             '상담사 (응답)': row.student.counselor || '',
         }));
 
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "일치여부 결과");
-        XLSX.writeFile(wb, "만족도_일치여부_결과.xlsx");
+        const ws = XLSXStyle.utils.json_to_sheet(exportData);
+        const numCols = Object.keys(exportData[0] || {}).length;
+        const colKeys = Object.keys(exportData[0] || {});
+
+        // 컬럼 너비 자동 조절 (한글 2단위, 영숫자 1단위)
+        const getColWidth = (str) => {
+            let w = 0;
+            for (const c of String(str)) w += /[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(c) ? 2 : 1;
+            return w;
+        };
+        const colWidths = colKeys.map(key => {
+            let maxW = getColWidth(key);
+            exportData.forEach(row => {
+                maxW = Math.max(maxW, getColWidth(row[key] ?? ''));
+            });
+            return { wch: Math.min(Math.max(maxW + 2, 10), 50) };
+        });
+        ws['!cols'] = colWidths;
+
+        // 행별 셀 스타일: 중복응답=주황색 전체, 불일치=불일치 셀만 빨간색
+        const redFill = { patternType: 'solid', fgColor: { rgb: 'FFFFE0E0' } };
+        const orangeFill = { patternType: 'solid', fgColor: { rgb: 'FFFFE4CC' } };
+        const colIdx = (key) => colKeys.indexOf(key);
+        comparisonData.forEach((row, idx) => {
+            const r = idx + 1;
+            if (row.status === 'DUPLICATE_RESPONSE') {
+                for (let c = 0; c < numCols; c++) {
+                    const cellRef = XLSXStyle.utils.encode_cell({ r, c });
+                    if (ws[cellRef]) ws[cellRef].s = { fill: orangeFill };
+                }
+            } else if (row.status === 'NOT_IN_REF') {
+                for (let c = 0; c < numCols; c++) {
+                    const cellRef = XLSXStyle.utils.encode_cell({ r, c });
+                    if (ws[cellRef]) ws[cellRef].s = { fill: redFill };
+                }
+            } else if (row.status === 'PARTIAL_MISMATCH' || row.status === 'DUPLICATE') {
+                const md = row.matchDetails || {};
+                const redCols = new Set();
+                if (!md.name) { redCols.add(colIdx('이름 (실제)')); redCols.add(colIdx('이름 (응답)')); }
+                if (!md.department) { redCols.add(colIdx('학과 (실제)')); redCols.add(colIdx('학과 (응답)')); }
+                if (!md.type) { redCols.add(colIdx('상담분류 (실제)')); redCols.add(colIdx('상담분류 (응답)')); }
+                if (!md.date) { redCols.add(colIdx('상담일자 (실제)')); redCols.add(colIdx('상담일자 (응답)')); }
+                if (!md.counselor) { redCols.add(colIdx('상담사 (실제)')); redCols.add(colIdx('상담사 (응답)')); }
+                redCols.forEach(c => {
+                    if (c >= 0) {
+                        const cellRef = XLSXStyle.utils.encode_cell({ r, c });
+                        if (ws[cellRef]) ws[cellRef].s = { fill: redFill };
+                    }
+                });
+            }
+        });
+
+        const wb = XLSXStyle.utils.book_new();
+        XLSXStyle.utils.book_append_sheet(wb, ws, "일치여부 결과");
+        XLSXStyle.writeFile(wb, "만족도_일치여부_결과.xlsx");
     };
 
     const handleReset = () => {
