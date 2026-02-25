@@ -69,11 +69,6 @@ const SatisfactionMatch = () => {
         let colH = findColumnIndex(headerRow, '선생님');
         if (colH < 0) colH = findColumnIndex(headerRow, '상담사');
 
-        // 디버깅: 컬럼 인덱스 확인
-        console.log('[응답데이터 파싱] 컬럼 인덱스:', {
-            전공: colB, 학번: colC, 이름: colD, 유형: colE, 일정: colF, 시간: colG, 상담사: colH
-        });
-
         const results = [];
         let hiddenCount = 0;
         let testDataCount = 0;
@@ -88,7 +83,8 @@ const SatisfactionMatch = () => {
             const row = jsonData[i];
             if (!row || row.length === 0) continue;
 
-            // 각 컬럼이 유효한 인덱스일 때만 데이터 읽기
+            // 각 컬럼이 유효한 인덱스일 때만 데이터 읽기 (B=전공, C=학번, D=이름, E=유형, F=일정, G=시간, H=상담사)
+            const department = colB >= 0 ? String(row[colB] || '').trim() : '';
             const name = colD >= 0 ? String(row[colD] || '').trim() : '';
             const studentId = colC >= 0 ? String(row[colC] || '').trim() : '';
             const type = colE >= 0 ? String(row[colE] || '').trim() : '';
@@ -96,9 +92,8 @@ const SatisfactionMatch = () => {
             const time = colG >= 0 ? String(row[colG] || '').trim() : '';
             let counselor = colH >= 0 ? String(row[colH] || '').trim() : '';
 
-
-            // 상담사 이름 정제: [내용] 제거
-            counselor = counselor.replace(/\[.*?\]/g, '').trim();
+            // 상담사 이름 정제: [xxx], ［xxx］, 【xxx】 등 다양한 괄호 패턴 제거
+            counselor = cleanCounselorDisplay(counselor);
 
             // "서면첨삭" 여부 확인 (시간 열 또는 유형 열에 포함된 경우)
             const isWritten = (time && time.includes('서면첨삭')) || (type && type.includes('서면첨삭'));
@@ -127,6 +122,7 @@ const SatisfactionMatch = () => {
                 results.push({
                     name,
                     studentId,
+                    department,
                     type,
                     schedule, // F열
                     time,     // G열
@@ -136,19 +132,18 @@ const SatisfactionMatch = () => {
                 });
             }
         }
-        console.log(`[응답데이터 파싱 결과] 전체: ${jsonData.length - 1}건, 숨겨짐(필터): ${hiddenCount}건, 테스트데이터 제외: ${testDataCount}건, 유효 데이터: ${results.length}건`);
         return results;
     };
 
-    // 기준데이터 파싱: E열 이름, D열 학번, J열 상담분류, C열 일자+시간, K열 상담사
+    // 기준데이터 파싱: C=일자, D=학번, E=이름, G=학과, J=상담분류, K=상담사
     const parseReferenceData = (jsonData) => {
         if (!jsonData || jsonData.length < 2) return [];
 
-        const headerRow = jsonData[0];
-        // 열 인덱스: A=0, B=1, C=2, D=3, E=4, ..., J=9, K=10
+        // 열 인덱스: A=0, B=1, C=2, D=3, E=4, F=5, G=6, ..., J=9, K=10
         const colC = 2; // C열: 컨설팅일자
         const colD = 3; // D열: 학번
         const colE = 4; // E열: 이름
+        const colG = 6; // G열: 학과
         const colJ = 9; // J열: 상담분류
         const colK = 10; // K열: 상담사
 
@@ -159,15 +154,17 @@ const SatisfactionMatch = () => {
 
             const name = String(row[colE] || '').trim();
             const studentId = String(row[colD] || '').trim();
+            const department = String(row[colG] || '').trim();
             const type = String(row[colJ] || '').trim();
             const dateTime = String(row[colC] || '').trim();
             const counselor = String(row[colK] || '').trim();
 
             if (name || studentId) {
                 results.push({
-                    id: i, // 고유 식별자 추가
+                    id: i,
                     name,
                     studentId,
+                    department,
                     type,
                     dateTime,
                     counselor,
@@ -278,27 +275,107 @@ const SatisfactionMatch = () => {
         return name.replace(/[^\w\uAC00-\uD7A3]/g, '').trim();
     };
 
-    // 상담사 이름 정규화 (선생님, 상담사 제거)
+    // 학번 정규화: 7자리 숫자 또는 8자리+영문(대학원), 영문 대소문자 무시
+    const normalizeStudentId = (id) => {
+        if (!id) return '';
+        const s = String(id).trim().toLowerCase();
+        return s;
+    };
+
+    // 학번 비교 (대소문자 무시)
+    const checkStudentIdMatch = (id1, id2) => {
+        if (!id1 || !id2) return false;
+        return normalizeStudentId(id1) === normalizeStudentId(id2);
+    };
+
+    // 학과 유사 매칭: "경영학부" vs "경영", "커뮤니케이션 미디어" vs "커뮤니케이션·미디어학부" → 일치(유사)
+    const normalizeDepartment = (dept) => {
+        if (!dept) return '';
+        return String(dept)
+            .replace(/학부|학과|전공/g, '')
+            .replace(/[\s·\-]/g, '')
+            .trim();
+    };
+
+    const checkDepartmentMatch = (dept1, dept2) => {
+        if (!dept1 && !dept2) return { match: true, similar: false };
+        if (!dept1 || !dept2) return { match: false, similar: false };
+        const d1 = String(dept1).trim();
+        const d2 = String(dept2).trim();
+        if (d1 === d2) return { match: true, similar: false };
+        if (d1.includes(d2) || d2.includes(d1)) return { match: true, similar: true };
+        // 정규화 후 비교: "커뮤니케이션 미디어" vs "커뮤니케이션·미디어학부" → 일치(유사)
+        const n1 = normalizeDepartment(d1);
+        const n2 = normalizeDepartment(d2);
+        if (n1 && n2 && (n1 === n2 || n1.includes(n2) || n2.includes(n1))) return { match: true, similar: true };
+        return { match: false, similar: false };
+    };
+
+    // 상담사 이름 정제: [xxx], ［xxx］, 【xxx】 등 다양한 괄호 패턴 제거
+    const cleanCounselorDisplay = (raw) => {
+        if (!raw) return '';
+        let s = String(raw)
+            .replace(/\[[^\]]*\]/g, '')       // [xxx]
+            .replace(/［[^］]*］/g, '')       // 전각 대괄호
+            .replace(/【[^】]*】/g, '')       // 【xxx】
+            .replace(/（[^）]*）/g, '')       // 전각 소괄호 (일부)
+            .replace(/\s+/g, ' ')
+            .trim();
+        // "홍길동 선생님" → "홍길동" (표시용)
+        s = s.replace(/\s*선생님\s*$/, '').trim();
+        return s;
+    };
+
+    // 상담사 이름 정규화 (비교용): 괄호 제거, 선생님/상담사 제거, 공백 제거
     const normalizeCounselorName = (name) => {
         if (!name) return '';
-        return name.replace(/\s+/g, '')
+        const cleaned = cleanCounselorDisplay(name);
+        return cleaned
+            .replace(/\s+/g, '')
             .replace(/선생님/g, '')
             .replace(/상담사/g, '')
             .trim();
     };
 
-    // 상담분류 비교
+    // 서면첨삭 관련 유형 여부 (일정 대조 생략 대상)
+    const isWrittenCorrectionType = (type) => {
+        if (!type) return false;
+        const t = String(type).trim();
+        return /서면첨삭/.test(t) || /(국문|영문)\s*서면첨삭|서면첨삭\s*(국문|영문)/i.test(t);
+    };
+
+    // 상담분류 규칙 기반 비교 (하드코딩 없이 문자열 파싱)
+    // 서류면접(일반)=서류면접, 괄호/하이픈 뒤 "일반"→기본 유형과 동일
+    // 괄호/하이픈 뒤 "이공계","공기업" 등→해당 분류까지 일치해야 함
     const checkTypeMatch = (type1, type2) => {
         if (!type1 || !type2) return false;
-        // 1. 단순 공백 제거 비교 및 부분 포함 비교
-        const t1 = type1.replace(/\s+/g, '').trim();
-        const t2 = type2.replace(/\s+/g, '').trim();
-        if (t1 === t2 || t1.includes(t2) || t2.includes(t1)) return true;
 
-        // 2. 괄호 안팎 순서 변경 대응 (예: "서면첨삭(국문)" vs "(국문)서면첨삭")
-        // 괄호, 대괄호 등으로 분리하여 키워드 배열 생성 후 정렬 비교
-        const normalize = (s) => s.split(/[()\[\]]/).map(x => x.trim()).filter(Boolean).sort().join('');
-        if (normalize(type1) === normalize(type2)) return true;
+        const parseType = (s) => {
+            const t = String(s).replace(/\s+/g, ' ').trim();
+            const match = t.match(/^(.+?)[(\-\（\－](.+?)[)\）]?$/);
+            const base = (match ? match[1] : t).trim();
+            const suffix = match && match[2] ? match[2].trim() : null;
+            return { base, suffix };
+        };
+
+        const p1 = parseType(type1);
+        const p2 = parseType(type2);
+
+        if (p1.base === p2.base) {
+            // "일반"은 기본 유형과 동일 (둘 다 일반/없음일 때만)
+            // "서류면접-이공계" vs "서류면접" → 불일치 (세부분류 있음 vs 없음)
+            const isGeneral = (s) => !s || /^일반$/i.test(s);
+            if (isGeneral(p1.suffix) && isGeneral(p2.suffix)) return true;
+
+            // 서면첨삭: 국문/영문 포함 시 동일 유형으로 인식
+            if (/서면첨삭/.test(p1.base) && p1.suffix && p2.suffix && /국문|영문/.test(p1.suffix) && /국문|영문/.test(p2.suffix)) return true;
+
+            return (p1.suffix || '') === (p2.suffix || '');
+        }
+
+        // "서류면접-이공계" (응답) vs "이공계" (실제) → 일치 (실제가 세부분류만 있을 때)
+        if (!p2.suffix && p1.suffix && p1.suffix === p2.base) return true;
+        if (!p1.suffix && p2.suffix && p1.base === p2.suffix) return true;
 
         return false;
     };
@@ -308,30 +385,21 @@ const SatisfactionMatch = () => {
         if (!refDateTime) return false;
         if (!respSchedule) return false;
 
+        // 서면첨삭 관련 유형: 컨설팅 일정 대조 생략 (항상 통과)
+        const isWrittenCorrection = isWrittenCorrectionType(respType) ||
+            (respTime && respTime.includes('서면첨삭'));
+        if (isWrittenCorrection) return true;
+
         // 기준 데이터 정규화 (YYYY.MM.DD HH:MM)
         const refNorm = formatDateTime(refDateTime);
         if (!refNorm) return false;
 
-        // 응답 데이터: "서면첨삭" 여부 확인 (시간 열 또는 유형 열에 "서면첨삭" 포함 시)
-        const isWrittenCorrection = (respTime && respTime.includes('서면첨삭')) || (respType && respType.includes('서면첨삭'));
-
         // 응답 데이터 시간 조합 및 정규화
-        let respDateTimeRaw = respSchedule;
-        if (respTime && !isWrittenCorrection) {
-            respDateTimeRaw += ` ${respTime}`;
-        }
+        const respDateTimeRaw = respSchedule + (respTime ? ` ${respTime}` : '');
         const respNorm = formatDateTime(respDateTimeRaw);
         if (!respNorm) return false;
 
-        if (isWrittenCorrection) {
-            // 서면첨삭인 경우 날짜(YYYY.MM.DD)만 비교
-            const refDate = refNorm.split(' ')[0];
-            const respDate = respNorm.split(' ')[0];
-            return refDate === respDate;
-        } else {
-            // 그 외의 경우 날짜와 시간까지 모두 비교 (YYYY.MM.DD HH:MM)
-            return refNorm === respNorm;
-        }
+        return refNorm === respNorm;
     };
 
     const compareFiles = async (refFile, studFile) => {
@@ -397,32 +465,24 @@ const SatisfactionMatch = () => {
 
                     return d >= filterStart && d <= filterEnd;
                 });
-
-                console.log(`[날짜 필터링] 기준: ${minDate.toISOString().split('T')[0]} ~ ${maxDate.toISOString().split('T')[0]}`);
-                console.log(`[날짜 필터링] 적용 범위: ${filterStart.toISOString().split('T')[0]} ~ ${filterEnd.toISOString().split('T')[0]}`);
-                console.log(`[날짜 필터링] 결과: ${originalCount}건 -> ${studDataRaw.length}건 (제외된 과거/미래 데이터: ${originalCount - studDataRaw.length}건)`);
             }
 
-            // 기준데이터를 학번 기준으로 그룹화 (동일 학번이 여러 건일 수 있음)
+            // 기준데이터를 학번 기준으로 그룹화 (정규화된 학번으로, 대소문자 무시)
             const refMapByStudentId = new Map();
             refDataRaw.forEach(ref => {
-                const studentId = String(ref.studentId || '').trim();
-                if (!studentId) return;
-                if (!refMapByStudentId.has(studentId)) {
-                    refMapByStudentId.set(studentId, []);
-                }
-                refMapByStudentId.get(studentId).push(ref);
+                const key = normalizeStudentId(ref.studentId || '');
+                if (!key) return;
+                if (!refMapByStudentId.has(key)) refMapByStudentId.set(key, []);
+                refMapByStudentId.get(key).push(ref);
             });
 
-            // 응답데이터를 학번 기준으로 그룹화 (중복 응답 처리)
+            // 응답데이터를 학번 기준으로 그룹화 (정규화된 학번으로)
             const studMapByStudentId = new Map();
             studDataRaw.forEach(stud => {
-                const studentId = String(stud.studentId || '').trim();
-                if (!studentId) return;
-                if (!studMapByStudentId.has(studentId)) {
-                    studMapByStudentId.set(studentId, []);
-                }
-                studMapByStudentId.get(studentId).push(stud);
+                const key = normalizeStudentId(stud.studentId || '');
+                if (!key) return;
+                if (!studMapByStudentId.has(key)) studMapByStudentId.set(key, []);
+                studMapByStudentId.get(key).push(stud);
             });
 
             // 응답데이터 기준으로 비교 (학번을 고유 식별값으로 사용)
@@ -431,6 +491,13 @@ const SatisfactionMatch = () => {
 
             studMapByStudentId.forEach((studResponses, studentId) => {
                 const refRecords = refMapByStudentId.get(studentId) || [];
+
+                // 같은 일정(날짜+시간)에 2회 이상 응답 여부 감지
+                const dateTimeCounts = new Map();
+                studResponses.forEach(studResp => {
+                    const dtKey = (studResp.dateTime || '').trim();
+                    dateTimeCounts.set(dtKey, (dateTimeCounts.get(dtKey) || 0) + 1);
+                });
 
                 // 각 응답에 대해 가장 일치율이 높은 기준데이터 건과 매칭
                 studResponses.forEach(studResp => {
@@ -460,12 +527,16 @@ const SatisfactionMatch = () => {
                             score += 3;
                         }
 
-                        // 상담사 비교 (기준 K열 vs 응답 H열, 선생님 제거 후 비교)
+                        // 상담사 비교 (기준 K열 vs 응답 H열)
                         const refCounselorNorm = normalizeCounselorName(refRecord.counselor);
                         const studCounselorNorm = normalizeCounselorName(studResp.counselor);
                         if (refCounselorNorm && studCounselorNorm && refCounselorNorm === studCounselorNorm) {
                             score += 2;
                         }
+
+                        // 학과 비교 (기준 G열 vs 응답 B열)
+                        const deptResult = checkDepartmentMatch(refRecord.department, studResp.department);
+                        if (deptResult.match) score += 1;
 
                         if (score > bestMatchScore) {
                             bestMatchScore = score;
@@ -487,14 +558,21 @@ const SatisfactionMatch = () => {
                     );
                     const counselorMatch = bestMatch &&
                         normalizeCounselorName(bestMatch.counselor) === normalizeCounselorName(studResp.counselor);
+                    const deptResult = bestMatch ? checkDepartmentMatch(bestMatch.department, studResp.department) : { match: false, similar: false };
 
-                    let isMatch = finalNameMatch && typeMatch && dateMatch && counselorMatch;
-                    let status = isMatch ? 'MATCH' : 'MISMATCH';
+                    let isMatch = finalNameMatch && typeMatch && dateMatch && counselorMatch && deptResult.match;
+                    let status = isMatch ? 'MATCH' : (bestMatch ? 'PARTIAL_MISMATCH' : 'NOT_IN_REF');
 
-                    // 중복 응답 처리: 이미 매칭된 기준데이터인 경우
-                    if (bestMatch && usedRefIds.has(bestMatch.id)) {
+                    // 같은 일정(날짜+시간)에 2회 이상 응답 → 중복응답 표시
+                    const dtKey = (studResp.dateTime || '').trim();
+                    if (dateTimeCounts.get(dtKey) > 1) {
+                        status = status === 'MATCH' ? 'DUPLICATE_RESPONSE' : (status === 'PARTIAL_MISMATCH' ? 'DUPLICATE_RESPONSE' : status);
+                    }
+
+                    // 중복 응답 처리: 이미 매칭된 기준데이터인 경우 (중복의심)
+                    if (bestMatch && usedRefIds.has(bestMatch.id) && status !== 'DUPLICATE_RESPONSE') {
                         status = 'DUPLICATE';
-                        isMatch = false; // 중복인 경우 불일치로 간주하거나 별도 처리
+                        isMatch = false;
                     } else if (bestMatch && isMatch) {
                         // 일치하는 경우 해당 기준 데이터는 사용된 것으로 표시
                         usedRefIds.add(bestMatch.id);
@@ -504,26 +582,18 @@ const SatisfactionMatch = () => {
                         usedRefIds.add(bestMatch.id);
                     }
 
-                    // 디버깅: 상담사 데이터 확인
-                    if (!studResp.counselor && studResp.rawRow) {
-                        console.warn('[비교] 상담사 데이터 없음:', {
-                            학번: studResp.studentId,
-                            이름: studResp.name,
-                            rawRow: studResp.rawRow,
-                            rawRowLength: studResp.rawRow.length
-                        });
-                    }
-
                     results.push({
                         student: studResp,
                         reference: bestMatch || {},
                         status: status,
                         matchDetails: {
                             name: finalNameMatch,
-                            studentId: true, // 학번으로 매칭했으므로 항상 true
+                            studentId: true,
                             type: typeMatch,
                             date: dateMatch,
-                            counselor: counselorMatch
+                            counselor: counselorMatch,
+                            department: deptResult.match,
+                            departmentSimilar: deptResult.similar
                         }
                     });
                 });
@@ -532,7 +602,6 @@ const SatisfactionMatch = () => {
             setComparisonData(results);
 
         } catch (error) {
-            console.error("Error processing files:", error);
             alert("파일 처리 중 오류가 발생했습니다: " + error.message);
         }
     };
@@ -684,16 +753,18 @@ const SatisfactionMatch = () => {
         if (comparisonData.length === 0) return;
 
         const exportData = comparisonData.map(row => ({
-            '상태': row.status === 'MATCH' ? '일치' : '불일치',
+            '상태': getStatusLabel(row.status),
             '이름 (실제)': row.reference.name || '',
             '이름 (응답)': row.student.name,
             '학번': row.student.studentId,
+            '학과 (실제)': row.reference.department || '',
+            '학과 (응답)': row.student.department || '',
             '상담분류 (실제)': row.reference.type || '',
             '상담분류 (응답)': row.student.type,
             '상담일자 (실제)': formatDateTime(row.reference.dateTime || ''),
             '상담일자 (응답)': formatDateTime(row.student.dateTime),
-            '상담사 (실제)': row.reference.counselor || '',
-            '상담사 (응답)': row.student.counselor,
+            '상담사 (실제)': cleanCounselorDisplay(row.reference.counselor || ''),
+            '상담사 (응답)': row.student.counselor || '',
         }));
 
         const ws = XLSX.utils.json_to_sheet(exportData);
@@ -759,8 +830,15 @@ const SatisfactionMatch = () => {
         const sortedData = getSortedData();
         if (statusFilter === 'all') return sortedData;
         if (statusFilter === 'match') return sortedData.filter(row => row.status === 'MATCH');
-        if (statusFilter === 'mismatch') return sortedData.filter(row => row.status === 'MISMATCH');
+        if (statusFilter === 'partial') return sortedData.filter(row => row.status === 'PARTIAL_MISMATCH');
+        if (statusFilter === 'duplicate') return sortedData.filter(row => row.status === 'DUPLICATE' || row.status === 'DUPLICATE_RESPONSE');
+        if (statusFilter === 'not_in_ref') return sortedData.filter(row => row.status === 'NOT_IN_REF');
         return sortedData;
+    };
+
+    const getStatusLabel = (status) => {
+        const map = { MATCH: '일치', PARTIAL_MISMATCH: '일부 불일치', DUPLICATE: '중복의심', DUPLICATE_RESPONSE: '중복응답', NOT_IN_REF: '기준데이터에없음' };
+        return map[status] || status;
     };
 
     return (
@@ -824,34 +902,30 @@ const SatisfactionMatch = () => {
                         <div className="stats-summary">
                             <span className="stat-item">전체: <strong>{comparisonData.length}</strong></span>
                             <span className="stat-item">일치: <strong>{comparisonData.filter(d => d.status === 'MATCH').length}</strong></span>
-                            <span className="stat-item">불일치: <strong>{comparisonData.filter(d => d.status === 'MISMATCH').length}</strong></span>
+                            <span className="stat-item">일부 불일치: <strong>{comparisonData.filter(d => d.status === 'PARTIAL_MISMATCH').length}</strong></span>
+                            <span className="stat-item">중복의심: <strong>{comparisonData.filter(d => d.status === 'DUPLICATE').length}</strong></span>
+                            <span className="stat-item">중복응답: <strong>{comparisonData.filter(d => d.status === 'DUPLICATE_RESPONSE').length}</strong></span>
+                            <span className="stat-item">기준데이터에없음: <strong>{comparisonData.filter(d => d.status === 'NOT_IN_REF').length}</strong></span>
                             <div className="filter-checkboxes">
                                 <label className="filter-checkbox">
-                                    <input
-                                        type="radio"
-                                        name="statusFilter"
-                                        checked={statusFilter === 'all'}
-                                        onChange={() => handleFilterChange('all')}
-                                    />
-                                    모두
+                                    <input type="radio" name="statusFilter" checked={statusFilter === 'all'} onChange={() => handleFilterChange('all')} />
+                                    전체
                                 </label>
                                 <label className="filter-checkbox">
-                                    <input
-                                        type="radio"
-                                        name="statusFilter"
-                                        checked={statusFilter === 'match'}
-                                        onChange={() => handleFilterChange('match')}
-                                    />
+                                    <input type="radio" name="statusFilter" checked={statusFilter === 'match'} onChange={() => handleFilterChange('match')} />
                                     일치
                                 </label>
                                 <label className="filter-checkbox">
-                                    <input
-                                        type="radio"
-                                        name="statusFilter"
-                                        checked={statusFilter === 'mismatch'}
-                                        onChange={() => handleFilterChange('mismatch')}
-                                    />
-                                    불일치
+                                    <input type="radio" name="statusFilter" checked={statusFilter === 'partial'} onChange={() => handleFilterChange('partial')} />
+                                    일부 불일치
+                                </label>
+                                <label className="filter-checkbox">
+                                    <input type="radio" name="statusFilter" checked={statusFilter === 'duplicate'} onChange={() => handleFilterChange('duplicate')} />
+                                    중복의심/중복응답
+                                </label>
+                                <label className="filter-checkbox">
+                                    <input type="radio" name="statusFilter" checked={statusFilter === 'not_in_ref'} onChange={() => handleFilterChange('not_in_ref')} />
+                                    기준데이터에없음
                                 </label>
                             </div>
                             <button className="reset-btn" onClick={handleReset}>
@@ -890,6 +964,7 @@ const SatisfactionMatch = () => {
                                             sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                                         )}
                                     </th>
+                                    <th>학과 (실제/응답)</th>
                                     <th className="sortable" onClick={() => handleSort('type')}>
                                         상담분류 (실제/응답)
                                         {sortConfig.key === 'type' && (
@@ -924,15 +999,15 @@ const SatisfactionMatch = () => {
                                     };
 
                                     return (
-                                        <tr key={idx} className={row.status === 'DUPLICATE' ? 'duplicate-row' : ''}>
+                                        <tr key={idx} className={row.status === 'DUPLICATE' || row.status === 'DUPLICATE_RESPONSE' ? 'duplicate-row' : ''}>
                                             <td>{idx + 1}</td>
                                             <td>
-                                                <span className={`status-badge ${row.status === 'MATCH' ? 'status-match' :
-                                                        row.status === 'DUPLICATE' ? 'status-duplicate' :
-                                                            'status-mismatch'
-                                                    }`}>
-                                                    {row.status === 'MATCH' ? '일치' :
-                                                        row.status === 'DUPLICATE' ? '중복 의심' : '불일치'}
+                                                <span className={`status-badge ${
+                                                    row.status === 'MATCH' ? 'status-match' :
+                                                    row.status === 'DUPLICATE' || row.status === 'DUPLICATE_RESPONSE' ? 'status-duplicate' :
+                                                    row.status === 'NOT_IN_REF' ? 'status-not-in-ref' : 'status-mismatch'
+                                                }`}>
+                                                    {getStatusLabel(row.status)}
                                                 </span>
                                             </td>
                                             <td className={!row.matchDetails.name ? 'mismatch-cell' : ''}>
@@ -946,6 +1021,17 @@ const SatisfactionMatch = () => {
                                                 </div>
                                             </td>
                                             <td>{row.student.studentId}</td>
+                                            <td className={!row.matchDetails.department ? 'mismatch-cell' : ''}>
+                                                <div className="data-content">
+                                                    <span className="student-data">{row.student.department || '(응답 없음)'}</span>
+                                                    {!row.matchDetails.department && row.reference?.department && (
+                                                        <div className="reference-data">(실제: {row.reference.department})</div>
+                                                    )}
+                                                    {row.matchDetails.department && row.matchDetails.departmentSimilar && (
+                                                        <div className="reference-data">(판정: 일치(유사))</div>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className={!row.matchDetails.type ? 'mismatch-cell' : ''}>
                                                 <div className="data-content">
                                                     <span className="student-data">{row.student.type || '(응답 없음)'}</span>
@@ -971,7 +1057,7 @@ const SatisfactionMatch = () => {
                                                     <span className="student-data">{row.student?.counselor || '(응답 없음)'}</span>
                                                     {!row.matchDetails.counselor && (
                                                         <div className="reference-data">
-                                                            (실제: {row.reference?.counselor || '데이터 없음'})
+                                                            (실제: {cleanCounselorDisplay(row.reference?.counselor) || '데이터 없음'})
                                                         </div>
                                                     )}
                                                 </div>

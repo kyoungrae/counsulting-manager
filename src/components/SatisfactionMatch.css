@@ -236,6 +236,11 @@
     color: #c62828;
 }
 
+.status-not-in-ref {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
 .status-duplicate {
     background-color: #fff3e0;
     color: #e65100;
