@@ -74,6 +74,24 @@ const cloneSheetStructureOnly = (workbook, sourceSheet, newName) => {
   return newSheet;
 };
 
+/** 개요 시트: 테이블 영역(B13:C16, B20:D30) 외부 셀의 테두리 제거 (불필요한 선 제거) */
+const clearBordersOutsideTables = (ws) => {
+  const inTable = (row, col) => {
+    if (row >= 13 && row <= 16 && col >= 2 && col <= 3) return true; // 제공 영역 표
+    if (row >= 20 && row <= 30 && col >= 2 && col <= 4) return true; // 설문 진행 표
+    return false;
+  };
+  for (let r = 1; r <= 120; r += 1) {
+    for (let c = 1; c <= 20; c += 1) {
+      if (inTable(r, c)) continue;
+      const cell = ws.getCell(r, c);
+      if (cell.border) {
+        cell.border = undefined;
+      }
+    }
+  }
+};
+
 /** 셀 값만 설정, 스타일 유지 (템플릿 스타일 보존) */
 const setCell = (ws, addr, value) => {
   const cell = ws.getCell(addr);
@@ -477,7 +495,8 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
   const monthTemplateSheet = template.getWorksheet(monthTemplateName);
 
   const workbook = new ExcelJS.Workbook();
-  cloneSheet(workbook, summarySheet, summarySheetName);
+  const summaryClone = cloneSheet(workbook, summarySheet, summarySheetName);
+  clearBordersOutsideTables(summaryClone);
   let effectiveStatsMap = monthlyStatsMap;
   if (!monthlyStatsMap.size) {
     const now = new Date();

@@ -389,14 +389,14 @@
 }
 
 .excel-preview-exact td {
-    border: 1px solid #000;
     padding: 2px 6px;
     vertical-align: middle;
+    /* 테두리는 셀에 정의된 경우에만 적용 (인라인 style로) */
 }
 
 .excel-preview-html td,
 .excel-preview-html th,
-.excel-preview-table td {
+.excel-preview-table:not(.excel-preview-exact) td {
     border: 1px solid #ddd;
     padding: 4px 8px;
     min-width: 60px;

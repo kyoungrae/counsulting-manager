@@ -33,21 +33,37 @@ const getCellValue = (cell) => {
   return String(v);
 };
 
+const toBorderCss = (b) => {
+  if (!b || b.style === 'none' || !b.style) return null;
+  const color = b.color?.argb ? `#${String(b.color.argb).slice(-6)}` : '#000';
+  return `1px solid ${color}`;
+};
+
 const getCellStyle = (cell) => {
   if (!cell) return {};
   const style = {};
   if (cell.font) {
     if (cell.font.bold) style.fontWeight = 'bold';
     if (cell.font.size) style.fontSize = `${cell.font.size}px`;
-    if (cell.font.color?.argb) style.color = `#${cell.font.color.argb.slice(2)}`;
+    if (cell.font.color?.argb) style.color = `#${String(cell.font.color.argb).slice(-6)}`;
   }
   if (cell.fill?.fgColor?.argb) {
-    style.backgroundColor = `#${cell.fill.fgColor.argb.slice(2)}`;
+    style.backgroundColor = `#${String(cell.fill.fgColor.argb).slice(-6)}`;
   }
   if (cell.alignment) {
     if (cell.alignment.horizontal) style.textAlign = cell.alignment.horizontal;
     if (cell.alignment.vertical) style.verticalAlign = cell.alignment.vertical;
     if (cell.alignment.wrapText) style.whiteSpace = 'pre-wrap';
+  }
+  if (cell.border) {
+    const top = toBorderCss(cell.border.top);
+    const right = toBorderCss(cell.border.right);
+    const bottom = toBorderCss(cell.border.bottom);
+    const left = toBorderCss(cell.border.left);
+    if (top) style.borderTop = top;
+    if (right) style.borderRight = right;
+    if (bottom) style.borderBottom = bottom;
+    if (left) style.borderLeft = left;
   }
   return style;
 };
@@ -104,7 +120,22 @@ export const worksheetToPreviewData = (worksheet) => {
 
   const mergeRanges = getMergeRanges(worksheet);
   const maxRow = Math.min(worksheet.rowCount || 120, 150);
-  const maxCol = 30;
+  const usedRangeMaxCol = mergeRanges.reduce((max, r) => Math.max(max, r.colMax), 0);
+  const styledOrValueMaxCol = Math.max(
+    ...(Array.from({ length: maxRow }, (_, i) => i + 1).map((r) => {
+      const row = worksheet.getRow(r);
+      let rowMax = 0;
+      for (let c = 1; c <= 30; c += 1) {
+        const cell = row.getCell(c);
+        const hasValue = cell.value !== null && cell.value !== undefined && String(cell.value) !== '';
+        const hasStyle = !!(cell.font || cell.fill || cell.border || cell.alignment);
+        if (hasValue || hasStyle) rowMax = c;
+      }
+      return rowMax;
+    })),
+    0
+  );
+  const maxCol = Math.max(usedRangeMaxCol, styledOrValueMaxCol, 1);
 
   const colWidths = [];
   for (let c = 1; c <= maxCol; c += 1) {
