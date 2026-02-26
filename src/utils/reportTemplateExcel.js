@@ -109,6 +109,28 @@ const mergeOverviewBulletItems = (ws) => {
   });
 };
 
+const THIN_BORDER = { style: 'thin', color: { argb: 'FF000000' } };
+
+/** 개요 시트: 제공 영역 표(B13:C16) 각 행을 2열로 병합 후 테두리 적용 */
+const fillProvidedAreaTableBorders = (ws) => {
+  ['B13:C13', 'B14:C14', 'B15:C15', 'B16:C16'].forEach((range) => {
+    try {
+      ws.mergeCells(range);
+    } catch (_) {
+      /* 이미 병합된 경우 무시 */
+    }
+  });
+  for (let r = 13; r <= 16; r += 1) {
+    const cell = ws.getCell(r, 2); // 병합된 셀의 master
+    cell.border = {
+      top: { ...THIN_BORDER },
+      left: { ...THIN_BORDER },
+      bottom: { ...THIN_BORDER },
+      right: { ...THIN_BORDER }
+    };
+  }
+};
+
 /** 개요 시트: 테이블 영역(B13:C16, B20:D30) 외부 셀의 테두리 제거 (불필요한 선 제거) */
 const clearBordersOutsideTables = (ws) => {
   const inTable = (row, col) => {
@@ -117,7 +139,7 @@ const clearBordersOutsideTables = (ws) => {
     return false;
   };
   for (let r = 1; r <= 120; r += 1) {
-    for (let c = 1; c <= 20; c += 1) {
+    for (let c = 2; c <= 20; c += 1) {
       if (inTable(r, c)) continue;
       const cell = ws.getCell(r, c);
       if (cell.border) {
@@ -535,6 +557,7 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
   fillSectionHeaderBackground(summaryClone);
   mergeOverviewBulletItems(summaryClone);
   clearBordersOutsideTables(summaryClone);
+  fillProvidedAreaTableBorders(summaryClone);
   let effectiveStatsMap = monthlyStatsMap;
   if (!monthlyStatsMap.size) {
     const now = new Date();

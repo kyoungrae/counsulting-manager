@@ -72,6 +72,21 @@ const getCellStyle = (cell) => {
   return style;
 };
 
+/** merge 항목을 { rowMin, colMin, rowMax, colMax } 형식으로 변환 (ExcelJS 여러 형식 지원) */
+const toMergeParsed = (m) => {
+  if (typeof m === 'string') return parseRange(m);
+  if (m?.range && typeof m.range === 'string') return parseRange(m.range);
+  if (m?.s && m?.e) {
+    return {
+      rowMin: (m.s.r ?? m.s.row ?? 0) + 1,
+      colMin: (m.s.c ?? m.s.col ?? 0) + 1,
+      rowMax: (m.e.r ?? m.e.row ?? 0) + 1,
+      colMax: (m.e.c ?? m.e.col ?? 0) + 1
+    };
+  }
+  return null;
+};
+
 /**
  * Merge 범위 목록 파싱 (worksheet._merges 또는 model.merges)
  */
@@ -80,11 +95,12 @@ const getMergeRanges = (worksheet) => {
   if (!merges) return [];
   const list = Array.isArray(merges)
     ? merges
-    : Object.values(merges || {}).map((v) => (typeof v?.range === 'string' ? v.range : v));
+    : merges instanceof Map
+      ? Array.from(merges.values())
+      : Object.values(merges || {});
   const ranges = [];
   list.forEach((m) => {
-    const rangeStr = typeof m === 'string' ? m : m?.range;
-    const parsed = parseRange(rangeStr);
+    const parsed = toMergeParsed(m);
     if (parsed) ranges.push(parsed);
   });
   return ranges;
