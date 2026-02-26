@@ -131,6 +131,16 @@ const fillProvidedAreaTableBorders = (ws) => {
   }
 };
 
+/** 개요 시트: 4. 설문 진행 표(B20:D30) 마지막 행(기타 아래)에 하단 테두리 적용 */
+const fillSurveyProgressTableBottomBorder = (ws) => {
+  const lastRow = 30;
+  for (let c = 1; c <= 1; c += 1) {
+    const cell = ws.getCell(lastRow, c);
+    if (!cell.border) cell.border = {};
+    cell.border.bottom = JSON.parse(JSON.stringify(THIN_BORDER));
+  }
+};
+
 /** 개요 시트: 테이블 영역(B13:C16, B20:D30) 외부 셀의 테두리 제거 (불필요한 선 제거) */
 const clearBordersOutsideTables = (ws) => {
   const inTable = (row, col) => {
@@ -558,6 +568,7 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
   mergeOverviewBulletItems(summaryClone);
   clearBordersOutsideTables(summaryClone);
   fillProvidedAreaTableBorders(summaryClone);
+  fillSurveyProgressTableBottomBorder(summaryClone);
   let effectiveStatsMap = monthlyStatsMap;
   if (!monthlyStatsMap.size) {
     const now = new Date();
