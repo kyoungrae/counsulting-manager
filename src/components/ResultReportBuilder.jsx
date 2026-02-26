@@ -9,6 +9,7 @@ import {
   sortMonthsDesc
 } from '../utils/reportDataNormalizer';
 import { buildResultReportWorkbook } from '../utils/reportTemplateExcel';
+import { worksheetToPreviewData } from '../utils/excelPreviewRenderer';
 import './SatisfactionMatch.css';
 
 const UPPER_OPTIONS = ['진로개발', '서류면접', '서면첨삭'];
@@ -92,12 +93,8 @@ const ResultReportBuilder = () => {
     if (!previewWorkbook || !previewWorkbook.worksheets?.length) return { type: 'none' };
     const ws = previewWorkbook.worksheets[previewSheetTab];
     if (!ws) return { type: 'none' };
-    const rows = [];
-    ws.eachRow({ includeEmpty: true }, (row, rowNumber) => {
-      const vals = row.values ? [...row.values] : [];
-      rows.push(vals.map((v) => (v == null ? '' : String(v))));
-    });
-    return { type: 'rows', rows };
+    const { rows, colWidths } = worksheetToPreviewData(ws);
+    return { type: 'excel', rows, colWidths };
   }, [previewWorkbook, previewSheetTab]);
 
   const handleFileUpload = async (files, zoneId) => {
@@ -289,13 +286,25 @@ const ResultReportBuilder = () => {
                     ))}
                   </div>
                   <div className="excel-preview-content">
-                    {previewSheetContent.type === 'rows' && (
-                      <table className="excel-preview-table">
+                    {previewSheetContent.type === 'excel' && (
+                      <table className="excel-preview-table excel-preview-exact">
+                        <colgroup>
+                          {previewSheetContent.colWidths.map((w, i) => (
+                            <col key={i} style={{ width: typeof w === 'number' ? `${Math.max(20, Math.min(w * 8, 180))}px` : undefined }} />
+                          ))}
+                        </colgroup>
                         <tbody>
                           {previewSheetContent.rows.map((row, ri) => (
                             <tr key={ri}>
-                              {(Array.isArray(row) ? row : []).map((cell, ci) => (
-                                <td key={ci}>{String(cell ?? '')}</td>
+                              {row.cells.map((cell, ci) => (
+                                <td
+                                  key={ci}
+                                  rowSpan={cell.rowSpan}
+                                  colSpan={cell.colSpan}
+                                  style={cell.style}
+                                >
+                                  {String(cell.value ?? '')}
+                                </td>
                               ))}
                             </tr>
                           ))}
