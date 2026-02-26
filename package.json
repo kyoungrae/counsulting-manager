@@ -20,6 +20,7 @@
     "seed:user": "node scripts/seed-user.js"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "firebase": "^12.9.0",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.556.0",

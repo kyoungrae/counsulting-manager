@@ -1,31 +1,80 @@
-import * as XLSXStyle from 'xlsx-js-style';
+import ExcelJS from 'exceljs';
 import { COLLEGE_ORDER, sortMonthsDesc } from './reportDataNormalizer';
 
 const TEMPLATE_URL = new URL('../../documents/결과 보고서 메뉴/인재개발원 진로취업컨설팅 진행 결과 보고(2026년 2월)  _ 개발용 결과보고서 예시.xlsx', import.meta.url).href;
 
-const cloneSheet = (ws) => JSON.parse(JSON.stringify(ws));
-
-const DEFAULT_CELL_STYLE = {
-  border: { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } },
-  alignment: { horizontal: 'center', vertical: 'center' }
+/** 수식 셀은 계산 결과만 복사 (Shared Formula 오류 방지) */
+const getCellValueForCopy = (cell) => {
+  if (cell.result !== undefined && cell.result !== null) return cell.result;
+  return cell.value;
 };
 
-/** 값만 갱신, 기존 셀 스타일(s)은 유지. 없으면 기본 테두리/정렬 적용 */
-const setCell = (ws, addr, value) => {
-  const existing = ws[addr];
-  const cell = existing || {};
-  if (value === null || value === undefined || value === '') {
-    cell.v = '';
-    cell.t = 's';
-  } else if (typeof value === 'number') {
-    cell.v = value;
-    cell.t = 'n';
-  } else {
-    cell.v = String(value);
-    cell.t = 's';
+/** ExcelJS 시트 복제 (스타일·병합·열너비 유지, 수식은 값으로 변환) */
+const cloneSheet = (workbook, sourceSheet, newName) => {
+  const newSheet = workbook.addWorksheet(newName);
+  const maxRow = Math.max(sourceSheet.rowCount || 0, 120);
+  for (let r = 1; r <= maxRow; r += 1) {
+    const srcRow = sourceSheet.getRow(r);
+    const dstRow = newSheet.getRow(r);
+    dstRow.height = srcRow.height;
+    srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const dstCell = dstRow.getCell(colNumber);
+      dstCell.value = getCellValueForCopy(cell);
+      if (cell.font) dstCell.font = { ...cell.font };
+      if (cell.fill) dstCell.fill = JSON.parse(JSON.stringify(cell.fill));
+      if (cell.border) dstCell.border = JSON.parse(JSON.stringify(cell.border));
+      if (cell.alignment) dstCell.alignment = { ...cell.alignment };
+      if (cell.numFmt) dstCell.numFmt = cell.numFmt;
+    });
   }
-  if (!cell.s) cell.s = (existing && existing.s) ? existing.s : DEFAULT_CELL_STYLE;
-  ws[addr] = cell;
+  sourceSheet.columns?.forEach((col, i) => {
+    if (col && col.width) newSheet.getColumn(i + 1).width = col.width;
+  });
+  Object.keys(sourceSheet._merges || {}).forEach((range) => {
+    try {
+      newSheet.mergeCells(range);
+    } catch (_) {
+      /* ignore invalid merges */
+    }
+  });
+  return newSheet;
+};
+
+/** 셀 값만 설정, 스타일 유지 */
+const setCell = (ws, addr, value) => {
+  const cell = ws.getCell(addr);
+  if (value === null || value === undefined || value === '') {
+    cell.value = '';
+  } else {
+    cell.value = value;
+  }
+};
+
+const a1ToRC = (a1) => {
+  const m = String(a1).match(/^([A-Z]+)(\d+)$/i);
+  if (!m) return null;
+  let col = 0;
+  for (let i = 0; i < m[1].length; i += 1) {
+    col = col * 26 + (m[1].toUpperCase().charCodeAt(i) - 64);
+  }
+  return { row: parseInt(m[2], 10), col };
+};
+
+/** 범위 값 비우기 (스타일 유지) */
+const clearRange = (ws, rangeA1) => {
+  try {
+    const [from, to] = rangeA1.includes(':') ? rangeA1.split(':') : [rangeA1, rangeA1];
+    const fromRC = a1ToRC(from.trim());
+    const toRC = a1ToRC(to.trim());
+    if (!fromRC || !toRC) return;
+    for (let r = fromRC.row; r <= toRC.row; r += 1) {
+      for (let c = fromRC.col; c <= toRC.col; c += 1) {
+        ws.getCell(r, c).value = '';
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
 };
 
 const getMonthLabel = (year, month) => {
@@ -43,9 +92,6 @@ const ratio = (a, b) => {
 };
 
 const fillMonthSheet = (ws, stat, trendByMonth) => {
-  // #region agent log
-  (()=>{const p={sessionId:'949fb3',location:'reportTemplateExcel.js:fillMonthSheet',message:'fillMonthSheet',data:{month:stat.month,year:stat.year,realtime:stat.realtime,offline:stat.offline,uniqueParticipants:stat.uniqueParticipants},timestamp:Date.now(),hypothesisId:'D,E'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-  // #endregion
   const mName = getMonthSheetName(stat.month);
   setCell(ws, 'A1', `2025학년도 하반기 진로·취업컨설팅 프로그램 운영 및 평가(${mName})`);
   setCell(ws, 'A4', `    ${stat.year}.${stat.month}.1. ~ ${stat.year}.${stat.month}.31.`);
@@ -62,6 +108,16 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   const totalApp = rtAppTotal + offTotal;
   const totalAttend = rtAttendTotal + offTotal;
   const totalAbsent = rtAbsentTotal;
+
+  clearRange(ws, 'B18:I22');
+  clearRange(ws, 'B28:I28');
+  clearRange(ws, 'B37:I39');
+  clearRange(ws, 'I50:I56');
+  clearRange(ws, 'I61:I78');
+  clearRange(ws, 'B82:E83');
+  clearRange(ws, 'B88:I106');
+
+  setCell(ws, 'A15', `(1) 진행별 운영: 총 신청 ${totalApp}건(실시간 ${rtAppTotal}건/서면첨삭 ${offTotal}건), 참석 ${totalAttend}건, 불참 ${totalAbsent}건`);
 
   setCell(ws, 'B18', rtApp.career);
   setCell(ws, 'C18', rtApp.interviewGeneral);
@@ -110,9 +166,12 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
 
   setCell(ws, 'B28', stat.consultantByType.career.join(', '));
   setCell(ws, 'C28', stat.consultantByType.interviewGeneral.join(', '));
+  setCell(ws, 'D28', '');
   setCell(ws, 'E28', stat.consultantByType.interviewSpecial.join(', '));
   setCell(ws, 'F28', stat.consultantByType.offlineLinked.join(', '));
   setCell(ws, 'G28', stat.consultantByType.offlineKorEng.join(', '));
+  setCell(ws, 'H28', '');
+  setCell(ws, 'I28', '');
 
   const grades = ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'];
   const gradeRows = [50, 51, 52, 53, 54, 55];
@@ -155,14 +214,12 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   setCell(ws, 'C83', ratio(stat.uniqueParticipants.twice, stat.uniqueParticipants.totalUnique));
   setCell(ws, 'D83', ratio(stat.uniqueParticipants.threePlus, stat.uniqueParticipants.totalUnique));
 
-  // 월별 트렌드 표(행 36/37/38/39)에서 해당 월 컬럼 자동 채움
   const monthCols = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-  const labels = monthCols.map((col) => String(ws[`${col}36`]?.v || '').trim());
   const target = getMonthLabel(stat.year, stat.month);
-  let monthCol = monthCols[labels.indexOf(target)];
+  let monthCol = monthCols.find((col) => String(ws.getCell(`${col}36`).value || '').trim() === target);
   if (!monthCol) {
-    const fallback = labels.findIndex((x) => x.endsWith(`${stat.month}월`));
-    monthCol = monthCols[fallback];
+    const idx = monthCols.findIndex((_, i) => String(ws.getCell(`${monthCols[i]}36`).value || '').endsWith(`${stat.month}월`));
+    monthCol = monthCols[idx];
   }
   if (monthCol) {
     const trend = trendByMonth.get(stat.month);
@@ -182,27 +239,14 @@ const buildTrendByMonth = (monthlyStatsMap) => {
   return m;
 };
 
-const COL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const getColLetter = (c) => (c < 26 ? COL_LETTERS[c] : getColLetter(Math.floor(c / 26) - 1) + COL_LETTERS[c % 26]);
-
-const DATA_CELL_STYLE = {
-  border: {
-    top: { style: 'thin', color: { rgb: '000000' } },
-    bottom: { style: 'thin', color: { rgb: '000000' } },
-    left: { style: 'thin', color: { rgb: '000000' } },
-    right: { style: 'thin', color: { rgb: '000000' } }
-  },
-  alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-  font: { sz: 10, name: '맑은 고딕' }
-};
-
 const fillParticipantSheet = (ws, rows) => {
+  ws.autoFilter = null;
   const sorted = [...rows].sort((a, b) => {
     const ad = a.basisDate?.getTime?.() || 0;
     const bd = b.basisDate?.getTime?.() || 0;
     return ad - bd;
   });
-  const body = sorted.map((r, idx) => ([
+  const body = sorted.map((r, idx) => [
     `${r.year || ''}.${r.month || ''}.`,
     idx + 1,
     r.displayDate || '',
@@ -214,92 +258,76 @@ const fillParticipantSheet = (ws, rows) => {
     r.attendance || '',
     r.typeCanonical || r.rawType || '',
     r.consultant || ''
-  ]));
-
+  ]);
   const dataStartRow = 5;
-  const numCols = 11;
-  const colStyles = [];
-  for (let c = 0; c < numCols; c += 1) {
-    const tc = ws[getColLetter(c) + dataStartRow];
-    colStyles[c] = (tc && tc.s) ? tc.s : DATA_CELL_STYLE;
-  }
+  const colCount = 11;
+  const lastRow = Math.max(4, body.length + 4);
 
+  const styleRow = ws.getRow(5);
   for (let r = 0; r < body.length; r += 1) {
     const excelRow = dataStartRow + r;
     const rowData = body[r];
-    for (let c = 0; c < numCols; c += 1) {
-      const addr = getColLetter(c) + excelRow;
-      const style = colStyles[c];
-      const cell = {
-        v: rowData[c] ?? '',
-        t: typeof rowData[c] === 'number' ? 'n' : 's',
-        s: style
-      };
-      ws[addr] = cell;
+    const row = ws.getRow(excelRow);
+    for (let c = 0; c < colCount; c += 1) {
+      const cell = row.getCell(c + 1);
+      cell.value = rowData[c] ?? '';
+      const styleCell = styleRow.getCell(c + 1);
+      if (styleCell.font) cell.font = { ...styleCell.font };
+      if (styleCell.fill) cell.fill = JSON.parse(JSON.stringify(styleCell.fill));
+      if (styleCell.border) cell.border = JSON.parse(JSON.stringify(styleCell.border));
+      if (styleCell.alignment) cell.alignment = { ...styleCell.alignment };
     }
   }
-
-  const lastRow = body.length > 0 ? dataStartRow + body.length - 1 : 4;
-  const lastCol = getColLetter(numCols - 1);
-  try {
-    const range = XLSXStyle.utils.decode_range(ws['!ref'] || 'A1');
-    for (let row = lastRow + 1; row <= range.e.r + 1; row += 1) {
-      for (let c = 0; c <= range.e.c; c += 1) delete ws[getColLetter(c) + row];
+  for (let r = dataStartRow + body.length; r <= 2171; r += 1) {
+    const row = ws.getRow(r);
+    for (let c = 1; c <= colCount; c += 1) {
+      row.getCell(c).value = '';
     }
-  } catch (_) { /* ignore */ }
-  ws['!ref'] = `A1:${lastCol}${lastRow}`;
-  if (!ws['!cols']) ws['!cols'] = [{ wch: 10 }, { wch: 8 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }];
+  }
   return ws;
 };
 
+/** ExcelJS 워크북 생성 (removeWorksheet 미사용 → XML 손상 방지) */
 export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
-  // #region agent log
-  (()=>{const p={sessionId:'949fb3',location:'reportTemplateExcel.js:buildResultReportWorkbook',message:'buildResultReportWorkbook entry',data:{templateUrl:TEMPLATE_URL,rowsCount:rows?.length,monthKeys:Array.from(monthlyStatsMap?.keys()||[])},timestamp:Date.now(),hypothesisId:'A'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-  // #endregion
   const res = await fetch(TEMPLATE_URL);
-  // #region agent log
-  (()=>{const p={sessionId:'949fb3',location:'reportTemplateExcel.js:fetch',message:'template fetch result',data:{ok:res.ok,status:res.status,url:TEMPLATE_URL},timestamp:Date.now(),hypothesisId:'A'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-  // #endregion
   if (!res.ok) throw new Error('결과보고서 템플릿 파일을 불러오지 못했습니다.');
   const buffer = await res.arrayBuffer();
-  const wb = XLSXStyle.read(buffer, { type: 'array', cellStyles: true });
+  const template = new ExcelJS.Workbook();
+  await template.xlsx.load(buffer);
 
   const summarySheetName = '개요';
   const rosterSheetName = '참여명단';
-  const summaryIdx = wb.SheetNames.indexOf(summarySheetName);
-  const rosterIdx = wb.SheetNames.indexOf(rosterSheetName);
-  if (summaryIdx < 0 || rosterIdx < 0) {
+  const surveySheetName = '설문조사';
+  const summarySheet = template.getWorksheet(summarySheetName);
+  const rosterSheet = template.getWorksheet(rosterSheetName);
+  const surveySheet = template.getWorksheet(surveySheetName);
+  if (!summarySheet || !rosterSheet) {
     throw new Error('템플릿의 필수 시트(개요/참여명단)가 없습니다.');
   }
 
-  // 기존 월별 시트 제거 전 템플릿 시트 클론
-  const monthTemplateName = wb.SheetNames.find((n, idx) => idx > summaryIdx && idx < rosterIdx) || wb.SheetNames.find((n) => /^\d+월$/.test(n));
-  if (!monthTemplateName || !wb.Sheets[monthTemplateName]) {
+  const monthTemplateName = template.worksheets.find(
+    (ws) => ws.name !== summarySheetName && ws.name !== rosterSheetName && /^\d+월$/.test(ws.name)
+  )?.name;
+  if (!monthTemplateName) {
     throw new Error('월별 시트 템플릿을 찾지 못했습니다.');
   }
-  const monthTemplateSheet = cloneSheet(wb.Sheets[monthTemplateName]);
+  const monthTemplateSheet = template.getWorksheet(monthTemplateName);
 
-  // 기존 월별 시트 제거 후 다시 생성
-  const oldMonthSheets = wb.SheetNames.filter((n, idx) => idx > summaryIdx && idx < rosterIdx);
-  oldMonthSheets.forEach((name) => {
-    delete wb.Sheets[name];
-    wb.SheetNames = wb.SheetNames.filter((n) => n !== name);
-  });
-
+  const workbook = new ExcelJS.Workbook();
+  cloneSheet(workbook, summarySheet, summarySheetName);
   const monthOrder = sortMonthsDesc(Array.from(monthlyStatsMap.keys()));
   const trendByMonth = buildTrendByMonth(monthlyStatsMap);
-  const rosterInsertIdx = wb.SheetNames.indexOf(rosterSheetName);
-  monthOrder.forEach((month, i) => {
+  monthOrder.forEach((month) => {
     const stat = monthlyStatsMap.get(month);
-    const newSheet = cloneSheet(monthTemplateSheet);
-    fillMonthSheet(newSheet, stat, trendByMonth);
     const newName = getMonthSheetName(month);
-    wb.Sheets[newName] = newSheet;
-    wb.SheetNames.splice(rosterInsertIdx + i, 0, newName);
+    const newSheet = cloneSheet(workbook, monthTemplateSheet, newName);
+    fillMonthSheet(newSheet, stat, trendByMonth);
   });
+  const rosterClone = cloneSheet(workbook, rosterSheet, rosterSheetName);
+  fillParticipantSheet(rosterClone, rows);
+  if (surveySheet) {
+    cloneSheet(workbook, surveySheet, surveySheetName);
+  }
 
-  wb.Sheets[rosterSheetName] = fillParticipantSheet(wb.Sheets[rosterSheetName], rows);
-
-  return wb;
+  return workbook;
 };
-

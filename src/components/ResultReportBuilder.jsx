@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import * as XLSXStyle from 'xlsx-js-style';
-import { Upload, Download, AlertTriangle, FileText } from 'lucide-react';
+import { Upload, Download, AlertTriangle, FileText, Eye } from 'lucide-react';
 import {
   applyTypeMappings,
   buildMonthlyStats,
@@ -51,13 +50,57 @@ const ResultReportBuilder = () => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [upperFilter, setUpperFilter] = useState('전체');
   const [subFilter, setSubFilter] = useState('전체');
+  const [mainTab, setMainTab] = useState('monthly');
+  const [previewWorkbook, setPreviewWorkbook] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewSheetTab, setPreviewSheetTab] = useState(0);
 
   const recalcRows = (rows, map) => applyTypeMappings(rows, map);
 
+  const monthlyStatsMap = useMemo(() => buildMonthlyStats(allRows), [allRows]);
+  const monthOrder = useMemo(
+    () => sortMonthsDesc(Array.from(monthlyStatsMap.keys())),
+    [monthlyStatsMap]
+  );
+
+  const loadPreview = useCallback(async () => {
+    if (!allRows.length || unknownTypeQueue.length) return;
+    setPreviewLoading(true);
+    try {
+      const wb = await buildResultReportWorkbook({ rows: allRows, monthlyStatsMap });
+      setPreviewWorkbook(wb);
+      setPreviewSheetTab(0);
+    } catch (err) {
+      setPreviewWorkbook(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [allRows, monthlyStatsMap, unknownTypeQueue.length]);
+
+  const previewDataKey = `${allRows.length}-${monthOrder.join(',')}`;
+  useEffect(() => {
+    setPreviewWorkbook(null);
+  }, [previewDataKey]);
+
+  useEffect(() => {
+    if (mainTab === 'preview' && allRows.length > 0 && !unknownTypeQueue.length && !previewWorkbook && !previewLoading) {
+      loadPreview();
+    }
+  }, [mainTab, allRows.length, unknownTypeQueue.length, previewWorkbook, previewLoading, loadPreview]);
+
+  const previewSheetContent = useMemo(() => {
+    if (!previewWorkbook || !previewWorkbook.worksheets?.length) return { type: 'none' };
+    const ws = previewWorkbook.worksheets[previewSheetTab];
+    if (!ws) return { type: 'none' };
+    const rows = [];
+    ws.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      const vals = row.values ? [...row.values] : [];
+      rows.push(vals.map((v) => (v == null ? '' : String(v))));
+    });
+    return { type: 'rows', rows };
+  }, [previewWorkbook, previewSheetTab]);
+
   const handleFileUpload = async (files, zoneId) => {
-    // #region agent log
-    (()=>{const zone=UPLOAD_ZONES.find((z)=>z.id===zoneId);const p={sessionId:'949fb3',location:'ResultReportBuilder.jsx:handleFileUpload',message:'handleFileUpload entry',data:{zoneId,filesCount:files?.length,fileNames:(files||[]).map(f=>f.name),acceptResults:(files||[]).map(f=>({name:f.name,accepted:zone?.accept?.(f.name)??false}))},timestamp:Date.now(),hypothesisId:'B'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-    // #endregion
     const zone = UPLOAD_ZONES.find((z) => z.id === zoneId);
     const nextRows = [...allRows];
     const nextFiles = [...loadedFiles];
@@ -88,9 +131,6 @@ const ResultReportBuilder = () => {
     setLoadedFiles(nextFiles);
     setUnknownTypeQueue(Array.from(unknown));
     setWarnings(Array.from(warn));
-    // #region agent log
-    (()=>{const p={sessionId:'949fb3',location:'ResultReportBuilder.jsx:handleFileUpload',message:'upload complete',data:{zoneId,filesCount:files.length,acceptedCount:nextFiles.length-loadedFiles.length,totalRows:nextRows.length,unknownCount:unknown.size},timestamp:Date.now(),hypothesisId:'B,C'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-    // #endregion
   };
 
   const onInputChange = async (e, zoneId) => {
@@ -117,12 +157,6 @@ const ResultReportBuilder = () => {
     setUnknownTypeQueue((prev) => prev.slice(1));
   };
 
-  const monthlyStatsMap = useMemo(() => buildMonthlyStats(allRows), [allRows]);
-  const monthOrder = useMemo(
-    () => sortMonthsDesc(Array.from(monthlyStatsMap.keys())),
-    [monthlyStatsMap]
-  );
-
   const filteredRows = useMemo(() => {
     return allRows.filter((r) => {
       if (upperFilter !== '전체' && r.typeUpper !== upperFilter) return false;
@@ -147,18 +181,16 @@ const ResultReportBuilder = () => {
     }
     try {
       setIsBuilding(true);
-      // #region agent log
-      (()=>{const p={sessionId:'949fb3',location:'ResultReportBuilder.jsx:buildWorkbook',message:'buildWorkbook start',data:{allRowsCount:allRows.length,monthKeys:Array.from(monthlyStatsMap.keys()),firstMonthStats:monthlyStatsMap.size?Object.fromEntries([...monthlyStatsMap.entries()].slice(0,1)):null},timestamp:Date.now(),hypothesisId:'D,E'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-      // #endregion
-      const wb = await buildResultReportWorkbook({ rows: allRows, monthlyStatsMap });
-      XLSXStyle.writeFile(wb, '인재개발원_진로취업컨설팅_결과보고서.xlsx');
-      // #region agent log
-      (()=>{const p={sessionId:'949fb3',location:'ResultReportBuilder.jsx:buildWorkbook',message:'buildWorkbook success',data:{sheetNames:wb.SheetNames},timestamp:Date.now(),hypothesisId:'A,E'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-      // #endregion
+      const workbook = await buildResultReportWorkbook({ rows: allRows, monthlyStatsMap });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '인재개발원_진로취업컨설팅_결과보고서.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
-      // #region agent log
-      (()=>{const p={sessionId:'949fb3',location:'ResultReportBuilder.jsx:buildWorkbook',message:'buildWorkbook error',data:{error:err.message,stack:err.stack},timestamp:Date.now(),hypothesisId:'A,E'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-      // #endregion
       alert(`결과보고서 생성 중 오류: ${err.message}`);
     } finally {
       setIsBuilding(false);
@@ -200,7 +232,25 @@ const ResultReportBuilder = () => {
 
       <div className="comparison-results">
         <div className="results-header">
-          <h2 className="results-title">월별 집계 현황</h2>
+          <div className="results-header-left">
+            <div className="main-tabs">
+              <button
+                type="button"
+                className={`main-tab ${mainTab === 'monthly' ? 'active' : ''}`}
+                onClick={() => setMainTab('monthly')}
+              >
+                월별 집계 현황
+              </button>
+              <button
+                type="button"
+                className={`main-tab ${mainTab === 'preview' ? 'active' : ''}`}
+                onClick={() => setMainTab('preview')}
+              >
+                <Eye size={16} />
+                엑셀 미리보기
+              </button>
+            </div>
+          </div>
           <div className="stats-summary">
             <span className="stat-item">업로드 파일: <strong>{loadedFiles.length}</strong></span>
             <span className="stat-item">데이터 행: <strong>{allRows.length}</strong></span>
@@ -213,6 +263,56 @@ const ResultReportBuilder = () => {
         </div>
 
         <div className="table-container" style={{ padding: 16 }}>
+          {mainTab === 'preview' && (
+            <>
+              {previewLoading ? (
+                <div className="empty-state">
+                  <p>엑셀 미리보기 생성 중...</p>
+                </div>
+              ) : !allRows.length || unknownTypeQueue.length ? (
+                <div className="empty-state">
+                  <FileText size={48} />
+                  <p>
+                    {!allRows.length
+                      ? '신청현황 파일을 업로드하면 미리보기가 표시됩니다.'
+                      : '신규 상담분류 매핑을 먼저 완료해주세요.'}
+                  </p>
+                </div>
+              ) : previewWorkbook ? (
+                <div className="excel-preview-panel">
+                  <div className="excel-preview-sheet-tabs">
+                    {previewWorkbook.worksheets.map((ws, i) => (
+                      <button
+                        key={ws.name}
+                        type="button"
+                        className={`excel-sheet-tab ${previewSheetTab === i ? 'active' : ''}`}
+                        onClick={() => setPreviewSheetTab(i)}
+                      >
+                        {ws.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="excel-preview-content">
+                    {previewSheetContent.type === 'rows' && (
+                      <table className="excel-preview-table">
+                        <tbody>
+                          {previewSheetContent.rows.map((row, ri) => (
+                            <tr key={ri}>
+                              {(Array.isArray(row) ? row : []).map((cell, ci) => (
+                                <td key={ci}>{String(cell ?? '')}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
+          {mainTab === 'monthly' && (
+            <>
           {unknownTypeQueue.length > 0 && (
             <div style={{ marginBottom: 16, border: '1px solid #f0c36d', borderRadius: 8, padding: 12, background: '#fff8e8' }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>
@@ -288,6 +388,8 @@ const ResultReportBuilder = () => {
                 })}
               </tbody>
             </table>
+          )}
+            </>
           )}
         </div>
       </div>

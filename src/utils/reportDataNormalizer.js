@@ -231,10 +231,6 @@ export const parseApplicationWorkbook = (jsonData, sheet, fileName, runtimeTypeM
   const kind = detectFileKind(fileName, header);
   const fileHintUpper = detectFileHintUpper(fileName, kind);
 
-  // #region agent log
-  (()=>{const h=header.slice(0,15);const p={sessionId:'949fb3',location:'reportDataNormalizer.js:parseApplicationWorkbook',message:'parse entry',data:{fileName,kind,fileHintUpper,headerSample:h},timestamp:Date.now(),hypothesisId:'B'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-  // #endregion
-
   const col = {
     applyDate: findColIndex(header, KEYWORDS.applyDate, 1),
     college: findColIndex(header, KEYWORDS.college, 2),
@@ -323,10 +319,6 @@ export const parseApplicationWorkbook = (jsonData, sheet, fileName, runtimeTypeM
   const month = fileMonth || dominantMonth || null;
   const rows = parsed.map((r) => ({ ...r, month: r.month || month }));
 
-  // #region agent log
-  (()=>{const s=rows.slice(0,2).map(r=>({typeUpper:r.typeUpper,typeSub:r.typeSub,attendance:r.attendance,isAttended:r.isAttended,isCompleted:r.isCompleted}));const p={sessionId:'949fb3',location:'reportDataNormalizer.js:parseApplicationWorkbook',message:'parse result',data:{fileName,kind,col,rowsCount:rows.length,month,unknownTypeKeys:Array.from(unknownTypeKeys),sample:s},timestamp:Date.now(),hypothesisId:'B,C'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-  // #endregion
-
   return {
     rows,
     kind,
@@ -364,9 +356,6 @@ const monthWeight = (month) => (month <= 2 ? month + 12 : month);
 export const sortMonthsDesc = (months) => [...months].sort((a, b) => monthWeight(b) - monthWeight(a));
 
 export const buildMonthlyStats = (rows) => {
-  // #region agent log
-  (()=>{const s=rows.slice(0,3).map(r=>({sourceKind:r.sourceKind,typeUpper:r.typeUpper,typeSub:r.typeSub,isApplied:r.isApplied,isAttended:r.isAttended,isCompleted:r.isCompleted}));const p={sessionId:'949fb3',location:'reportDataNormalizer.js:buildMonthlyStats',message:'buildMonthlyStats input',data:{rowsCount:rows.length,sample:s},timestamp:Date.now(),hypothesisId:'D'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-  // #endregion
   const grouped = new Map();
   rows.forEach((r) => {
     if (!r.month) return;
@@ -457,9 +446,6 @@ export const buildMonthlyStats = (rows) => {
     result.set(month, agg);
   });
 
-  // #region agent log
-  (()=>{const first=result.size?[...result.entries()][0]:null;const p={sessionId:'949fb3',location:'reportDataNormalizer.js:buildMonthlyStats',message:'buildMonthlyStats output',data:{monthCount:result.size,firstMonth:first?[first[0],{realtime:first[1].realtime,offline:first[1].offline,uniqueParticipants:first[1].uniqueParticipants}]:null},timestamp:Date.now(),hypothesisId:'D'};console.log('[DEBUG]',p);fetch('http://127.0.0.1:7445/ingest/084dafbe-c0ce-47f5-88df-ab8474392743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'949fb3'},body:JSON.stringify(p)}).catch(()=>{})})();
-  // #endregion
   return result;
 };
 

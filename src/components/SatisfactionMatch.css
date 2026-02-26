@@ -78,6 +78,41 @@
     align-items: center;
 }
 
+.results-header-left {
+    display: flex;
+    align-items: center;
+}
+
+.main-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.main-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: #666;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.main-tab:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.main-tab.active {
+    background: #e8f5e9;
+    color: #00462A;
+}
+
 .results-title {
     font-size: 1.2rem;
     font-weight: 600;
@@ -285,5 +320,77 @@
    We can enforce specifically if desired. */
 .mismatch-cell .student-data {
     color: #c62828;
+    font-weight: 600;
+}
+
+/* 엑셀 미리보기 */
+.excel-preview-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 400px;
+}
+
+.excel-preview-sheet-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 12px;
+}
+
+.excel-sheet-tab {
+    padding: 6px 14px;
+    border: 1px solid #ddd;
+    background: #fafafa;
+    color: #555;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.excel-sheet-tab:hover {
+    background: #f0f0f0;
+    border-color: #ccc;
+}
+
+.excel-sheet-tab.active {
+    background: #00462A;
+    color: white;
+    border-color: #00462A;
+}
+
+.excel-preview-content {
+    flex: 1;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.excel-preview-html {
+    width: 100%;
+    overflow: auto;
+}
+
+.excel-preview-html table,
+.excel-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.excel-preview-html td,
+.excel-preview-html th,
+.excel-preview-table td {
+    border: 1px solid #ddd;
+    padding: 4px 8px;
+    min-width: 60px;
+}
+
+.excel-preview-html th {
+    background: #f5f5f5;
     font-weight: 600;
 }
