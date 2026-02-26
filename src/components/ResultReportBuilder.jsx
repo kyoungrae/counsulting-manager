@@ -171,10 +171,6 @@ const ResultReportBuilder = () => {
   }, [filteredRows]);
 
   const buildWorkbook = async () => {
-    if (!allRows.length) {
-      alert('업로드된 데이터가 없습니다.');
-      return;
-    }
     if (unknownTypeQueue.length) {
       alert('신규 상담분류 매핑을 먼저 완료해주세요.');
       return;

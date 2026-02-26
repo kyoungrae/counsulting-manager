@@ -30,9 +30,42 @@ const cloneSheet = (workbook, sourceSheet, newName) => {
   sourceSheet.columns?.forEach((col, i) => {
     if (col && col.width) newSheet.getColumn(i + 1).width = col.width;
   });
-  Object.keys(sourceSheet._merges || {}).forEach((range) => {
+  Object.values(sourceSheet._merges || {}).forEach((mergeRange) => {
     try {
-      newSheet.mergeCells(range);
+      const rangeStr = typeof mergeRange?.range === 'string' ? mergeRange.range : mergeRange;
+      if (rangeStr) newSheet.mergeCells(rangeStr);
+    } catch (_) {
+      /* ignore invalid merges */
+    }
+  });
+  return newSheet;
+};
+
+/** 구조만 복제 (스타일·병합·열너비 유지, 값은 비움) */
+const cloneSheetStructureOnly = (workbook, sourceSheet, newName) => {
+  const newSheet = workbook.addWorksheet(newName);
+  const maxRow = Math.max(sourceSheet.rowCount || 0, 120);
+  for (let r = 1; r <= maxRow; r += 1) {
+    const srcRow = sourceSheet.getRow(r);
+    const dstRow = newSheet.getRow(r);
+    dstRow.height = srcRow.height;
+    srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const dstCell = dstRow.getCell(colNumber);
+      dstCell.value = '';
+      if (cell.font) dstCell.font = { ...cell.font };
+      if (cell.fill) dstCell.fill = JSON.parse(JSON.stringify(cell.fill));
+      if (cell.border) dstCell.border = JSON.parse(JSON.stringify(cell.border));
+      if (cell.alignment) dstCell.alignment = { ...cell.alignment };
+      if (cell.numFmt) dstCell.numFmt = cell.numFmt;
+    });
+  }
+  sourceSheet.columns?.forEach((col, i) => {
+    if (col && col.width) newSheet.getColumn(i + 1).width = col.width;
+  });
+  Object.values(sourceSheet._merges || {}).forEach((mergeRange) => {
+    try {
+      const rangeStr = typeof mergeRange?.range === 'string' ? mergeRange.range : mergeRange;
+      if (rangeStr) newSheet.mergeCells(rangeStr);
     } catch (_) {
       /* ignore invalid merges */
     }
@@ -45,6 +78,16 @@ const setCell = (ws, addr, value) => {
   const cell = ws.getCell(addr);
   if (value === null || value === undefined || value === '') {
     cell.value = '';
+  } else {
+    cell.value = value;
+  }
+};
+
+/** 숫자 셀 설정 (빈 값이면 0) */
+const setCellNumeric = (ws, addr, value) => {
+  const cell = ws.getCell(addr);
+  if (value === null || value === undefined || value === '') {
+    cell.value = 0;
   } else {
     cell.value = value;
   }
@@ -70,6 +113,23 @@ const clearRange = (ws, rangeA1) => {
     for (let r = fromRC.row; r <= toRC.row; r += 1) {
       for (let c = fromRC.col; c <= toRC.col; c += 1) {
         ws.getCell(r, c).value = '';
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
+};
+
+/** 범위를 숫자로 채우기 (숫자 셀은 0으로) */
+const fillRangeWithNumber = (ws, rangeA1, value = 0) => {
+  try {
+    const [from, to] = rangeA1.includes(':') ? rangeA1.split(':') : [rangeA1, rangeA1];
+    const fromRC = a1ToRC(from.trim());
+    const toRC = a1ToRC(to.trim());
+    if (!fromRC || !toRC) return;
+    for (let r = fromRC.row; r <= toRC.row; r += 1) {
+      for (let c = fromRC.col; c <= toRC.col; c += 1) {
+        ws.getCell(r, c).value = value;
       }
     }
   } catch (_) {
@@ -109,13 +169,23 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   const totalAttend = rtAttendTotal + offTotal;
   const totalAbsent = rtAbsentTotal;
 
-  clearRange(ws, 'B18:I22');
+  clearRange(ws, 'A10:F10');
+  fillRangeWithNumber(ws, 'B18:I22', 0);
   clearRange(ws, 'B28:I28');
-  clearRange(ws, 'B37:I39');
-  clearRange(ws, 'I50:I56');
-  clearRange(ws, 'I61:I78');
-  clearRange(ws, 'B82:E83');
-  clearRange(ws, 'B88:I106');
+  fillRangeWithNumber(ws, 'C27:G29', 0);
+  fillRangeWithNumber(ws, 'B37:I39', 0);
+  fillRangeWithNumber(ws, 'C43:I45', 0);
+  fillRangeWithNumber(ws, 'B50:I56', 0);
+  fillRangeWithNumber(ws, 'B61:I78', 0);
+  fillRangeWithNumber(ws, 'B82:E83', 0);
+  clearRange(ws, 'B88:I88');
+  clearRange(ws, 'B93');
+  clearRange(ws, 'B94:I94');
+  clearRange(ws, 'B95:I95');
+  clearRange(ws, 'B96:I96');
+  clearRange(ws, 'A100:I106');
+  fillRangeWithNumber(ws, 'B89:I93', 0);
+  fillRangeWithNumber(ws, 'B97:I99', 0);
 
   setCell(ws, 'A15', `(1) 진행별 운영: 총 신청 ${totalApp}건(실시간 ${rtAppTotal}건/서면첨삭 ${offTotal}건), 참석 ${totalAttend}건, 불참 ${totalAbsent}건`);
 
@@ -164,12 +234,12 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   setCell(ws, 'H22', '0.0%');
   setCell(ws, 'I22', ratio(totalAbsent, totalApp));
 
-  setCell(ws, 'B28', stat.consultantByType.career.join(', '));
-  setCell(ws, 'C28', stat.consultantByType.interviewGeneral.join(', '));
-  setCell(ws, 'D28', '');
-  setCell(ws, 'E28', stat.consultantByType.interviewSpecial.join(', '));
-  setCell(ws, 'F28', stat.consultantByType.offlineLinked.join(', '));
-  setCell(ws, 'G28', stat.consultantByType.offlineKorEng.join(', '));
+  setCellNumeric(ws, 'B28', stat.consultantByType.career.join(', '));
+  setCellNumeric(ws, 'C28', stat.consultantByType.interviewGeneral.join(', '));
+  setCellNumeric(ws, 'D28', '');
+  setCellNumeric(ws, 'E28', stat.consultantByType.interviewSpecial.join(', '));
+  setCellNumeric(ws, 'F28', stat.consultantByType.offlineLinked.join(', '));
+  setCellNumeric(ws, 'G28', stat.consultantByType.offlineKorEng.join(', '));
   setCell(ws, 'H28', '');
   setCell(ws, 'I28', '');
 
@@ -226,6 +296,28 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
     setCell(ws, `${monthCol}37`, trend?.realtimeTotal || 0);
     setCell(ws, `${monthCol}38`, trend?.offlineTotal || 0);
     setCell(ws, `${monthCol}39`, trend?.overallTotal || 0);
+  }
+
+  setCell(ws, 'B89', '실시간 컨설팅');
+  setCell(ws, 'B90', '진로개발(A)');
+  setCell(ws, 'C90', '서류면접 (B)');
+  setCell(ws, 'B91', '진로개발');
+  setCell(ws, 'C91', '일반');
+  setCell(ws, 'D91', '특화**');
+  setCell(ws, 'E89', '소계 (A+B 평균)');
+  setCell(ws, 'F89', '비실시간 컨설팅');
+  setCell(ws, 'F90', '서면첨삭 (C)');
+  setCell(ws, 'F91', '연계(국문)');
+  setCell(ws, 'G91', '국문/영문');
+  setCell(ws, 'H89', '소계 (C평균)');
+  setCell(ws, 'I89', '누계평균 (A+B+C 평균)');
+  setCell(ws, 'A97', '평가 기준');
+  setCell(ws, 'D97', '평가 내용');
+  setCell(ws, 'H97', '환류 계획');
+  try {
+    ws.mergeCells('H97:I97');
+  } catch (_) {
+    /* 이미 병합된 경우 무시 */
   }
 };
 
@@ -315,10 +407,26 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
 
   const workbook = new ExcelJS.Workbook();
   cloneSheet(workbook, summarySheet, summarySheetName);
-  const monthOrder = sortMonthsDesc(Array.from(monthlyStatsMap.keys()));
-  const trendByMonth = buildTrendByMonth(monthlyStatsMap);
+  let effectiveStatsMap = monthlyStatsMap;
+  if (!monthlyStatsMap.size) {
+    const now = new Date();
+    const defaultMonth = now.getMonth() + 1;
+    const emptyStat = {
+      month: defaultMonth,
+      year: now.getFullYear(),
+      realtime: { applied: { career: 0, interviewGeneral: 0, interviewSpecial: 0 }, attended: { career: 0, interviewGeneral: 0, interviewSpecial: 0 }, absent: { career: 0, interviewGeneral: 0, interviewSpecial: 0 } },
+      offline: { completed: { linked: 0, korEng: 0 } },
+      consultantByType: { career: [], interviewGeneral: [], interviewSpecial: [], offlineLinked: [], offlineKorEng: [] },
+      gradeCounts: { '1학년': 0, '2학년': 0, '3학년': 0, '4학년': 0, '5학년 이상': 0, 대학원: 0 },
+      collegeCounts: Object.fromEntries(COLLEGE_ORDER.map((c) => [c, 0])),
+      uniqueParticipants: { once: 0, twice: 0, threePlus: 0, totalUnique: 0 }
+    };
+    effectiveStatsMap = new Map([[defaultMonth, emptyStat]]);
+  }
+  const monthOrder = sortMonthsDesc(Array.from(effectiveStatsMap.keys()));
+  const trendByMonth = buildTrendByMonth(effectiveStatsMap);
   monthOrder.forEach((month) => {
-    const stat = monthlyStatsMap.get(month);
+    const stat = effectiveStatsMap.get(month);
     const newName = getMonthSheetName(month);
     const newSheet = cloneSheet(workbook, monthTemplateSheet, newName);
     fillMonthSheet(newSheet, stat, trendByMonth);
@@ -326,7 +434,7 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
   const rosterClone = cloneSheet(workbook, rosterSheet, rosterSheetName);
   fillParticipantSheet(rosterClone, rows);
   if (surveySheet) {
-    cloneSheet(workbook, surveySheet, surveySheetName);
+    cloneSheetStructureOnly(workbook, surveySheet, surveySheetName);
   }
 
   return workbook;
