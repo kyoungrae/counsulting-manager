@@ -2,6 +2,7 @@ import { useState } from 'react'
 import EwhaGrid from './components/EwhaGrid'
 import Sidebar from './components/Sidebar'
 import SatisfactionMatch from './components/SatisfactionMatch'
+import ResultReportBuilder from './components/ResultReportBuilder'
 
 function AppMain() {
   const [activeMenu, setActiveMenu] = useState('진로개발')
@@ -12,6 +13,8 @@ function AppMain() {
       <main className="main-content">
         {activeMenu === '만족도 일치여부' ? (
           <SatisfactionMatch />
+        ) : activeMenu === '결과 보고서 작성' ? (
+          <ResultReportBuilder />
         ) : (
           <EwhaGrid title={activeMenu} />
         )}
