@@ -78,7 +78,7 @@ const LIGHT_GRAY_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F
 
 /** 개요 시트: 제목 행(1행) 회색 배경 채우기 */
 const fillTitleBackground = (ws) => {
-  for (let c = 1; c <= 13; c += 1) {
+  for (let c = 1; c <= 2; c += 1) {
     ws.getCell(1, c).fill = JSON.parse(JSON.stringify(LIGHT_GRAY_FILL));
   }
 };
@@ -87,7 +87,7 @@ const fillTitleBackground = (ws) => {
 const fillSectionHeaderBackground = (ws) => {
   const headerRows = [3, 8, 12, 18];
   headerRows.forEach((row) => {
-    for (let c = 1; c <= 13; c += 1) {
+    for (let c = 1; c <=1; c += 1) {
       ws.getCell(row, c).fill = JSON.parse(JSON.stringify(LIGHT_GRAY_FILL));
     }
   });
