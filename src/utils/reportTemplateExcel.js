@@ -174,18 +174,23 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   clearRange(ws, 'B28:I28');
   fillRangeWithNumber(ws, 'C27:G29', 0);
   fillRangeWithNumber(ws, 'B37:I39', 0);
-  fillRangeWithNumber(ws, 'C43:I45', 0);
+  fillRangeWithNumber(ws, 'B43:I45', 0);
   fillRangeWithNumber(ws, 'B50:I56', 0);
   fillRangeWithNumber(ws, 'B61:I78', 0);
   fillRangeWithNumber(ws, 'B82:E83', 0);
   clearRange(ws, 'B88:I88');
-  clearRange(ws, 'B93');
   clearRange(ws, 'B94:I94');
   clearRange(ws, 'B95:I95');
   clearRange(ws, 'B96:I96');
   clearRange(ws, 'A100:I106');
   fillRangeWithNumber(ws, 'B89:I93', 0);
   fillRangeWithNumber(ws, 'B97:I99', 0);
+  clearRange(ws, 'B93');
+  clearRange(ws, 'B98');
+  clearRange(ws, 'D98');
+  clearRange(ws, 'H98');
+  clearRange(ws, 'B99');
+  clearRange(ws, 'D99');
 
   setCell(ws, 'A15', `(1) 진행별 운영: 총 신청 ${totalApp}건(실시간 ${rtAppTotal}건/서면첨삭 ${offTotal}건), 참석 ${totalAttend}건, 불참 ${totalAbsent}건`);
 
@@ -234,12 +239,15 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   setCell(ws, 'H22', '0.0%');
   setCell(ws, 'I22', ratio(totalAbsent, totalApp));
 
-  setCellNumeric(ws, 'B28', stat.consultantByType.career.join(', '));
-  setCellNumeric(ws, 'C28', stat.consultantByType.interviewGeneral.join(', '));
-  setCellNumeric(ws, 'D28', '');
-  setCellNumeric(ws, 'E28', stat.consultantByType.interviewSpecial.join(', '));
-  setCellNumeric(ws, 'F28', stat.consultantByType.offlineLinked.join(', '));
-  setCellNumeric(ws, 'G28', stat.consultantByType.offlineKorEng.join(', '));
+  setCell(ws, 'C27', '일반');
+  setCell(ws, 'E27', '특화');
+  setCell(ws, 'F27', '연계(국문)');
+  setCell(ws, 'G27', '국문/영문');
+  setCell(ws, 'C29', '-');
+  setCell(ws, 'E29', '-');
+  setCell(ws, 'F29', '-');
+  setCell(ws, 'G29', '-');
+  clearRange(ws, 'B28:G28');
   setCell(ws, 'H28', '');
   setCell(ws, 'I28', '');
 
