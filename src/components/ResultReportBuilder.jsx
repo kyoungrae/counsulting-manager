@@ -290,12 +290,12 @@ const ResultReportBuilder = () => {
                       <table className="excel-preview-table excel-preview-exact">
                         <colgroup>
                           {previewSheetContent.colWidths.map((w, i) => (
-                            <col key={i} style={{ width: typeof w === 'number' ? `${Math.max(20, Math.min(w * 8, 180))}px` : undefined }} />
+                            <col key={i} style={{ width: typeof w === 'number' ? `${Math.max(24, w * 7)}px` : undefined }} />
                           ))}
                         </colgroup>
                         <tbody>
                           {previewSheetContent.rows.map((row, ri) => (
-                            <tr key={ri}>
+                            <tr key={ri} style={row.height ? { height: `${row.height}pt` } : undefined}>
                               {row.cells.map((cell, ci) => (
                                 <td
                                   key={ci}

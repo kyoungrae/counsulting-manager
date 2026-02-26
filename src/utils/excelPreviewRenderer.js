@@ -44,16 +44,20 @@ const getCellStyle = (cell) => {
   const style = {};
   if (cell.font) {
     if (cell.font.bold) style.fontWeight = 'bold';
-    if (cell.font.size) style.fontSize = `${cell.font.size}px`;
+    if (cell.font.size) style.fontSize = `${cell.font.size}pt`;
     if (cell.font.color?.argb) style.color = `#${String(cell.font.color.argb).slice(-6)}`;
   }
   if (cell.fill?.fgColor?.argb) {
-    style.backgroundColor = `#${String(cell.fill.fgColor.argb).slice(-6)}`;
+    const argb = String(cell.fill.fgColor.argb);
+    if (argb !== 'FF000000' && argb !== '00000000') {
+      style.backgroundColor = `#${argb.slice(-6)}`;
+    }
   }
   if (cell.alignment) {
     if (cell.alignment.horizontal) style.textAlign = cell.alignment.horizontal;
     if (cell.alignment.vertical) style.verticalAlign = cell.alignment.vertical;
     if (cell.alignment.wrapText) style.whiteSpace = 'pre-wrap';
+    else style.whiteSpace = 'normal';
   }
   if (cell.border) {
     const top = toBorderCss(cell.border.top);
@@ -140,7 +144,7 @@ export const worksheetToPreviewData = (worksheet) => {
   const colWidths = [];
   for (let c = 1; c <= maxCol; c += 1) {
     const col = worksheet.getColumn(c);
-    colWidths.push(col && col.width ? col.width : 10);
+    colWidths.push(col && col.width ? col.width : 8.43);
   }
 
   const rows = [];
@@ -187,7 +191,7 @@ export const worksheetToPreviewData = (worksheet) => {
       col += colSpan;
     }
 
-    rows.push({ cells });
+    rows.push({ cells, height: srcRow.height || null });
   }
 
   return { rows, colWidths };

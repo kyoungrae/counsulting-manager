@@ -74,6 +74,41 @@ const cloneSheetStructureOnly = (workbook, sourceSheet, newName) => {
   return newSheet;
 };
 
+const LIGHT_GRAY_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+
+/** 개요 시트: 제목 행(1행) 회색 배경 채우기 */
+const fillTitleBackground = (ws) => {
+  for (let c = 1; c <= 13; c += 1) {
+    ws.getCell(1, c).fill = JSON.parse(JSON.stringify(LIGHT_GRAY_FILL));
+  }
+};
+
+/** 개요 시트: 섹션 헤더(1.목표, 2.대상, 3.제공 영역, 4.설문 진행) 회색 배경 채우기 */
+const fillSectionHeaderBackground = (ws) => {
+  const headerRows = [3, 8, 12, 18];
+  headerRows.forEach((row) => {
+    for (let c = 1; c <= 13; c += 1) {
+      ws.getCell(row, c).fill = JSON.parse(JSON.stringify(LIGHT_GRAY_FILL));
+    }
+  });
+};
+
+/** 개요 시트: 1. 목표·2. 대상 하위 볼릿 항목에 B:C(2열) 병합 적용 → colspan=2 */
+const mergeOverviewBulletItems = (ws) => {
+  const ranges = [
+    'A4:B4', 'A5:B5', 'A6:B6', 'A7:B7',   // 1. 목표 하위 (행 4~7)
+    'A9:B9', 'A10:C10', 'B11:C11',         // 2. 대상 하위 (행 9~11)
+    'A19:B19'
+  ];
+  ranges.forEach((range) => {
+    try {
+      ws.mergeCells(range);
+    } catch (_) {
+      /* 이미 병합된 경우 등 무시 */
+    }
+  });
+};
+
 /** 개요 시트: 테이블 영역(B13:C16, B20:D30) 외부 셀의 테두리 제거 (불필요한 선 제거) */
 const clearBordersOutsideTables = (ws) => {
   const inTable = (row, col) => {
@@ -496,6 +531,9 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
 
   const workbook = new ExcelJS.Workbook();
   const summaryClone = cloneSheet(workbook, summarySheet, summarySheetName);
+  fillTitleBackground(summaryClone);
+  fillSectionHeaderBackground(summaryClone);
+  mergeOverviewBulletItems(summaryClone);
   clearBordersOutsideTables(summaryClone);
   let effectiveStatsMap = monthlyStatsMap;
   if (!monthlyStatsMap.size) {
