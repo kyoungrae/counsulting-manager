@@ -9,6 +9,15 @@ const getCellValueForCopy = (cell) => {
   return cell.value;
 };
 
+/** 셀 스타일 복사 (배경, 테두리, 글꼴 등) */
+const copyCellStyle = (src, dst) => {
+  if (src.font) dst.font = JSON.parse(JSON.stringify(src.font));
+  if (src.fill) dst.fill = JSON.parse(JSON.stringify(src.fill));
+  if (src.border) dst.border = JSON.parse(JSON.stringify(src.border));
+  if (src.alignment) dst.alignment = JSON.parse(JSON.stringify(src.alignment));
+  if (src.numFmt) dst.numFmt = src.numFmt;
+};
+
 /** ExcelJS 시트 복제 (스타일·병합·열너비 유지, 수식은 값으로 변환) */
 const cloneSheet = (workbook, sourceSheet, newName) => {
   const newSheet = workbook.addWorksheet(newName);
@@ -20,11 +29,7 @@ const cloneSheet = (workbook, sourceSheet, newName) => {
     srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       const dstCell = dstRow.getCell(colNumber);
       dstCell.value = getCellValueForCopy(cell);
-      if (cell.font) dstCell.font = { ...cell.font };
-      if (cell.fill) dstCell.fill = JSON.parse(JSON.stringify(cell.fill));
-      if (cell.border) dstCell.border = JSON.parse(JSON.stringify(cell.border));
-      if (cell.alignment) dstCell.alignment = { ...cell.alignment };
-      if (cell.numFmt) dstCell.numFmt = cell.numFmt;
+      copyCellStyle(cell, dstCell);
     });
   }
   sourceSheet.columns?.forEach((col, i) => {
@@ -52,11 +57,7 @@ const cloneSheetStructureOnly = (workbook, sourceSheet, newName) => {
     srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       const dstCell = dstRow.getCell(colNumber);
       dstCell.value = '';
-      if (cell.font) dstCell.font = { ...cell.font };
-      if (cell.fill) dstCell.fill = JSON.parse(JSON.stringify(cell.fill));
-      if (cell.border) dstCell.border = JSON.parse(JSON.stringify(cell.border));
-      if (cell.alignment) dstCell.alignment = { ...cell.alignment };
-      if (cell.numFmt) dstCell.numFmt = cell.numFmt;
+      copyCellStyle(cell, dstCell);
     });
   }
   sourceSheet.columns?.forEach((col, i) => {
@@ -73,7 +74,7 @@ const cloneSheetStructureOnly = (workbook, sourceSheet, newName) => {
   return newSheet;
 };
 
-/** 셀 값만 설정, 스타일 유지 */
+/** 셀 값만 설정, 스타일 유지 (템플릿 스타일 보존) */
 const setCell = (ws, addr, value) => {
   const cell = ws.getCell(addr);
   if (value === null || value === undefined || value === '') {
