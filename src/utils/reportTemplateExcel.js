@@ -240,6 +240,7 @@ const ratio = (a, b) => {
 const fillMonthSheet = (ws, stat, trendByMonth) => {
   const mName = getMonthSheetName(stat.month);
   setCell(ws, 'A1', `2025학년도 하반기 진로·취업컨설팅 프로그램 운영 및 평가(${mName})`);
+  ws.getCell('A1').fill = JSON.parse(JSON.stringify(LIGHT_GRAY_FILL));
   setCell(ws, 'A4', `    ${stat.year}.${stat.month}.1. ~ ${stat.year}.${stat.month}.31.`);
 
   const rtApp = stat.realtime.applied;
@@ -470,8 +471,38 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   setCell(ws, 'A97', '평가 기준');
   setCell(ws, 'D97', '평가 내용');
   setCell(ws, 'H97', '환류 계획');
+
+  // 기타 의견 행(94행) 하단 테두리
+  for (let c = 1; c <= 9; c += 1) {
+    const cell = ws.getCell(93, c);
+    if (!cell.border) cell.border = {};
+    cell.border.right = JSON.parse(JSON.stringify(THIN_BORDER));
+  }
+  for (let c = 1; c <= 9; c += 1) {
+    const cell = ws.getCell(89, c);
+    if (!cell.border) cell.border = {};
+    cell.border.top = JSON.parse(JSON.stringify(THIN_BORDER));
+  }
+  for (let c = 1; c <= 9; c += 1) {
+    const cell = ws.getCell(97, c);
+    if (!cell.border) cell.border = {};
+    cell.border.top = JSON.parse(JSON.stringify(THIN_BORDER));
+    cell.border.right = JSON.parse(JSON.stringify(THIN_BORDER));
+  }
   try {
     ws.mergeCells('H97:I97');
+    ws.mergeCells('A13:B13');
+    ws.mergeCells('A15:G15');
+    ws.mergeCells('A23:G23');
+    ws.mergeCells('A25:D25');
+    ws.mergeCells('A32:D32');
+    ws.mergeCells('A34:G34');
+    ws.mergeCells('A47:H47');
+    ws.mergeCells('A58:H58');
+    ws.mergeCells('A80:H80');
+    ws.mergeCells('A87:H87');
+    ws.mergeCells('A88:H88');
+    ws.mergeCells('A95:H95');
   } catch (_) {
     /* 이미 병합된 경우 무시 */
   }
