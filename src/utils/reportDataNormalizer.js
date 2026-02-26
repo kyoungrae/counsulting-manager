@@ -414,7 +414,20 @@ export const buildMonthlyStats = (rows) => {
         '5학년 이상': 0,
         대학원: 0
       },
+      /** 학년×컨설팅유형별 참석/완료 수 (구분값 채우기용) */
+      countByGradeAndType: {
+        '1학년': { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 },
+        '2학년': { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 },
+        '3학년': { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 },
+        '4학년': { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 },
+        '5학년 이상': { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 },
+        대학원: { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 }
+      },
       collegeCounts: Object.fromEntries(COLLEGE_ORDER.map((c) => [c, 0])),
+      /** 단과대×컨설팅유형별 참석/완료 수 (구분값 채우기용) */
+      countByCollegeAndType: Object.fromEntries(
+        COLLEGE_ORDER.map((c) => [c, { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 }])
+      ),
       uniqueParticipants: { once: 0, twice: 0, threePlus: 0, totalUnique: 0 },
       anomalies: {
         unknownType: list.filter((r) => r.unknownTypeKey).length,
@@ -425,10 +438,25 @@ export const buildMonthlyStats = (rows) => {
       rows: list
     };
 
+    const getTypeKey = (r) => {
+      if (r.sourceKind === 'realtime') {
+        if (r.typeUpper === '진로개발') return 'career';
+        if (r.typeUpper === '서류면접' && r.typeSub === '일반') return 'interviewGeneral';
+        if (r.typeUpper === '서류면접' && r.typeSub === '특화') return 'interviewSpecial';
+      } else if (r.sourceKind === 'offline') {
+        if (r.typeUpper === '서면첨삭' && r.typeSub === '연계') return 'offlineLinked';
+        if (r.typeUpper === '서면첨삭' && (r.typeSub === '국문' || r.typeSub === '영문')) return 'offlineKorEng';
+      }
+      return null;
+    };
+
     attendedOrCompleted.forEach((r) => {
       const gb = gradeBucket(r.grade);
       agg.gradeCounts[gb] += 1;
       if (agg.collegeCounts[r.college] !== undefined) agg.collegeCounts[r.college] += 1;
+      const typeKey = getTypeKey(r);
+      if (typeKey && agg.countByGradeAndType[gb]) agg.countByGradeAndType[gb][typeKey] += 1;
+      if (typeKey && r.college && agg.countByCollegeAndType[r.college]) agg.countByCollegeAndType[r.college][typeKey] += 1;
     });
 
     const participation = new Map();

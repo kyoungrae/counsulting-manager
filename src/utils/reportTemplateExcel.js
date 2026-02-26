@@ -248,15 +248,49 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
   setCell(ws, 'E29', '-');
   setCell(ws, 'F29', '-');
   setCell(ws, 'G29', '-');
-  clearRange(ws, 'B28:G28');
+  setCell(ws, 'B28', (stat.consultantByType.career || []).join(', '));
+  setCell(ws, 'C28', (stat.consultantByType.interviewGeneral || []).join(', '));
+  setCell(ws, 'D28', '');
+  setCell(ws, 'E28', (stat.consultantByType.interviewSpecial || []).join(', '));
+  setCell(ws, 'F28', (stat.consultantByType.offlineLinked || []).join(', '));
+  setCell(ws, 'G28', (stat.consultantByType.offlineKorEng || []).join(', '));
   setCell(ws, 'H28', '');
   setCell(ws, 'I28', '');
 
   const grades = ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'];
   const gradeRows = [50, 51, 52, 53, 54, 55];
+  const byGrade = stat.countByGradeAndType || {};
   grades.forEach((g, i) => {
-    setCell(ws, `I${gradeRows[i]}`, stat.gradeCounts[g] || 0);
+    const row = gradeRows[i];
+    const t = byGrade[g] || {};
+    const career = t.career || 0;
+    const interviewGeneral = t.interviewGeneral || 0;
+    const interviewSpecial = t.interviewSpecial || 0;
+    const offlineLinked = t.offlineLinked || 0;
+    const offlineKorEng = t.offlineKorEng || 0;
+    const interviewSub = interviewGeneral + interviewSpecial;
+    const offlineSub = offlineLinked + offlineKorEng;
+    setCell(ws, `B${row}`, career);
+    setCell(ws, `C${row}`, interviewGeneral);
+    setCell(ws, `D${row}`, interviewSpecial);
+    setCell(ws, `E${row}`, interviewSub);
+    setCell(ws, `F${row}`, offlineLinked);
+    setCell(ws, `G${row}`, offlineKorEng);
+    setCell(ws, `H${row}`, offlineSub);
+    setCell(ws, `I${row}`, stat.gradeCounts[g] || 0);
   });
+  const totalCareer = grades.reduce((s, g) => s + ((byGrade[g] || {}).career || 0), 0);
+  const totalInterviewGeneral = grades.reduce((s, g) => s + ((byGrade[g] || {}).interviewGeneral || 0), 0);
+  const totalInterviewSpecial = grades.reduce((s, g) => s + ((byGrade[g] || {}).interviewSpecial || 0), 0);
+  const totalOfflineLinked = grades.reduce((s, g) => s + ((byGrade[g] || {}).offlineLinked || 0), 0);
+  const totalOfflineKorEng = grades.reduce((s, g) => s + ((byGrade[g] || {}).offlineKorEng || 0), 0);
+  setCell(ws, 'B56', totalCareer);
+  setCell(ws, 'C56', totalInterviewGeneral);
+  setCell(ws, 'D56', totalInterviewSpecial);
+  setCell(ws, 'E56', totalInterviewGeneral + totalInterviewSpecial);
+  setCell(ws, 'F56', totalOfflineLinked);
+  setCell(ws, 'G56', totalOfflineKorEng);
+  setCell(ws, 'H56', totalOfflineLinked + totalOfflineKorEng);
   setCell(ws, 'I56', grades.reduce((sum, g) => sum + (stat.gradeCounts[g] || 0), 0));
 
   const collegeRowMap = {
@@ -278,11 +312,39 @@ const fillMonthSheet = (ws, stat, trendByMonth) => {
     호크마교양대학: 76,
     대학원: 77
   };
+  const byCollege = stat.countByCollegeAndType || {};
   COLLEGE_ORDER.forEach((c) => {
     const rowNo = collegeRowMap[c];
     if (!rowNo) return;
+    const t = byCollege[c] || {};
+    const career = t.career || 0;
+    const interviewGeneral = t.interviewGeneral || 0;
+    const interviewSpecial = t.interviewSpecial || 0;
+    const offlineLinked = t.offlineLinked || 0;
+    const offlineKorEng = t.offlineKorEng || 0;
+    const interviewSub = interviewGeneral + interviewSpecial;
+    const offlineSub = offlineLinked + offlineKorEng;
+    setCell(ws, `B${rowNo}`, career);
+    setCell(ws, `C${rowNo}`, interviewGeneral);
+    setCell(ws, `D${rowNo}`, interviewSpecial);
+    setCell(ws, `E${rowNo}`, interviewSub);
+    setCell(ws, `F${rowNo}`, offlineLinked);
+    setCell(ws, `G${rowNo}`, offlineKorEng);
+    setCell(ws, `H${rowNo}`, offlineSub);
     setCell(ws, `I${rowNo}`, stat.collegeCounts[c] || 0);
   });
+  const totalCollegeCareer = COLLEGE_ORDER.reduce((s, c) => s + ((byCollege[c] || {}).career || 0), 0);
+  const totalCollegeInterviewGeneral = COLLEGE_ORDER.reduce((s, c) => s + ((byCollege[c] || {}).interviewGeneral || 0), 0);
+  const totalCollegeInterviewSpecial = COLLEGE_ORDER.reduce((s, c) => s + ((byCollege[c] || {}).interviewSpecial || 0), 0);
+  const totalCollegeOfflineLinked = COLLEGE_ORDER.reduce((s, c) => s + ((byCollege[c] || {}).offlineLinked || 0), 0);
+  const totalCollegeOfflineKorEng = COLLEGE_ORDER.reduce((s, c) => s + ((byCollege[c] || {}).offlineKorEng || 0), 0);
+  setCell(ws, 'B78', totalCollegeCareer);
+  setCell(ws, 'C78', totalCollegeInterviewGeneral);
+  setCell(ws, 'D78', totalCollegeInterviewSpecial);
+  setCell(ws, 'E78', totalCollegeInterviewGeneral + totalCollegeInterviewSpecial);
+  setCell(ws, 'F78', totalCollegeOfflineLinked);
+  setCell(ws, 'G78', totalCollegeOfflineKorEng);
+  setCell(ws, 'H78', totalCollegeOfflineLinked + totalCollegeOfflineKorEng);
   setCell(ws, 'I78', COLLEGE_ORDER.reduce((sum, c) => sum + (stat.collegeCounts[c] || 0), 0));
 
   setCell(ws, 'B82', withComma(stat.uniqueParticipants.once));
@@ -420,6 +482,7 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
   if (!monthlyStatsMap.size) {
     const now = new Date();
     const defaultMonth = now.getMonth() + 1;
+    const emptyGradeType = { career: 0, interviewGeneral: 0, interviewSpecial: 0, offlineLinked: 0, offlineKorEng: 0 };
     const emptyStat = {
       month: defaultMonth,
       year: now.getFullYear(),
@@ -427,7 +490,18 @@ export const buildResultReportWorkbook = async ({ rows, monthlyStatsMap }) => {
       offline: { completed: { linked: 0, korEng: 0 } },
       consultantByType: { career: [], interviewGeneral: [], interviewSpecial: [], offlineLinked: [], offlineKorEng: [] },
       gradeCounts: { '1학년': 0, '2학년': 0, '3학년': 0, '4학년': 0, '5학년 이상': 0, 대학원: 0 },
+      countByGradeAndType: {
+        '1학년': { ...emptyGradeType },
+        '2학년': { ...emptyGradeType },
+        '3학년': { ...emptyGradeType },
+        '4학년': { ...emptyGradeType },
+        '5학년 이상': { ...emptyGradeType },
+        대학원: { ...emptyGradeType }
+      },
       collegeCounts: Object.fromEntries(COLLEGE_ORDER.map((c) => [c, 0])),
+      countByCollegeAndType: Object.fromEntries(
+        COLLEGE_ORDER.map((c) => [c, { ...emptyGradeType }])
+      ),
       uniqueParticipants: { once: 0, twice: 0, threePlus: 0, totalUnique: 0 }
     };
     effectiveStatsMap = new Map([[defaultMonth, emptyStat]]);

@@ -408,6 +408,14 @@ const SatisfactionMatch = () => {
         return refNorm === respNorm;
     };
 
+    const toResponseDateTimeKey = (studResp) => {
+        const isWrittenCorrection = isWrittenCorrectionType(studResp?.type) ||
+            (studResp?.time && studResp.time.includes('서면첨삭'));
+        const formatted = formatDateTime(studResp?.dateTime || '');
+        if (!formatted) return '';
+        return isWrittenCorrection ? formatted.split(' ')[0] : formatted;
+    };
+
     const compareFiles = async (refFile, studFile) => {
         try {
             const [refResult, studResult] = await Promise.all([
@@ -482,26 +490,38 @@ const SatisfactionMatch = () => {
                 refMapByStudentId.get(key).push(ref);
             });
 
-            // 응답데이터를 학번 기준으로 그룹화 (정규화된 학번으로)
-            const studMapByStudentId = new Map();
-            studDataRaw.forEach(stud => {
-                const key = normalizeStudentId(stud.studentId || '');
-                if (!key) return;
-                if (!studMapByStudentId.has(key)) studMapByStudentId.set(key, []);
-                studMapByStudentId.get(key).push(stud);
+            // 기준데이터를 학번+이름 기준으로도 그룹화
+            const refMapByPersonKey = new Map();
+            refDataRaw.forEach(ref => {
+                const sid = normalizeStudentId(ref.studentId || '');
+                const nm = normalizeName(ref.name || '').toLowerCase();
+                if (!sid || !nm) return;
+                const key = `${sid}::${nm}`;
+                if (!refMapByPersonKey.has(key)) refMapByPersonKey.set(key, []);
+                refMapByPersonKey.get(key).push(ref);
             });
 
-            // 응답데이터 기준으로 비교 (학번을 고유 식별값으로 사용)
-            const results = [];
-            const usedRefIds = new Set(); // 이미 매칭된 기준데이터 ID 추적
+            // 응답데이터를 학번+이름 기준으로 그룹화
+            const studMapByPersonKey = new Map();
+            studDataRaw.forEach(stud => {
+                const sid = normalizeStudentId(stud.studentId || '');
+                const nm = normalizeName(stud.name || '').toLowerCase();
+                if (!sid) return;
+                const key = `${sid}::${nm}`;
+                if (!studMapByPersonKey.has(key)) studMapByPersonKey.set(key, []);
+                studMapByPersonKey.get(key).push(stud);
+            });
 
-            studMapByStudentId.forEach((studResponses, studentId) => {
-                const refRecords = refMapByStudentId.get(studentId) || [];
+            // 응답데이터 기준으로 비교 (응답자 중심 대조)
+            const results = [];
+            studMapByPersonKey.forEach((studResponses, personKey) => {
+                const studentId = personKey.split('::')[0];
+                const refRecords = refMapByPersonKey.get(personKey) || refMapByStudentId.get(studentId) || [];
 
                 // 같은 일정(날짜+시간)에 2회 이상 응답 여부 감지
                 const dateTimeCounts = new Map();
                 studResponses.forEach(studResp => {
-                    const dtKey = (studResp.dateTime || '').trim();
+                    const dtKey = toResponseDateTimeKey(studResp);
                     dateTimeCounts.set(dtKey, (dateTimeCounts.get(dtKey) || 0) + 1);
                 });
 
@@ -570,22 +590,16 @@ const SatisfactionMatch = () => {
                     let status = isMatch ? 'MATCH' : (bestMatch ? 'PARTIAL_MISMATCH' : 'NOT_IN_REF');
 
                     // 같은 일정(날짜+시간)에 2회 이상 응답 → 중복응답 표시
-                    const dtKey = (studResp.dateTime || '').trim();
+                    const dtKey = toResponseDateTimeKey(studResp);
                     if (dateTimeCounts.get(dtKey) > 1) {
                         status = status === 'MATCH' ? 'DUPLICATE_RESPONSE' : (status === 'PARTIAL_MISMATCH' ? 'DUPLICATE_RESPONSE' : status);
                     }
 
-                    // 중복 응답 처리: 이미 매칭된 기준데이터인 경우 (중복의심)
-                    if (bestMatch && usedRefIds.has(bestMatch.id) && status !== 'DUPLICATE_RESPONSE') {
+                    // 동일인물 응답 횟수: 월 2회 정상, 예외적으로 3회까지 허용
+                    // 4회 이상이면 중복의심
+                    if (studResponses.length > 3 && status !== 'DUPLICATE_RESPONSE' && status !== 'NOT_IN_REF') {
                         status = 'DUPLICATE';
                         isMatch = false;
-                    } else if (bestMatch && isMatch) {
-                        // 일치하는 경우 해당 기준 데이터는 사용된 것으로 표시
-                        usedRefIds.add(bestMatch.id);
-                    } else if (bestMatch) {
-                        // 불일치하더라도 가장 유사한 항목으로 일단 점유 처리 (다른 응답이 가로채지 못하게)
-                        // 단, 점유를 원치 않는다면 이 부분은 조정 가능
-                        usedRefIds.add(bestMatch.id);
                     }
 
                     results.push({
@@ -600,7 +614,14 @@ const SatisfactionMatch = () => {
                             counselor: counselorMatch,
                             department: deptResult.match,
                             departmentSimilar: deptResult.similar
-                        }
+                        },
+                        mismatchItems: [
+                            !finalNameMatch ? '이름' : null,
+                            !deptResult.match ? '학과' : null,
+                            !typeMatch ? '상담분류' : null,
+                            !dateMatch ? '상담일자' : null,
+                            !counselorMatch ? '상담사' : null
+                        ].filter(Boolean)
                     });
                 });
             });
@@ -760,6 +781,7 @@ const SatisfactionMatch = () => {
 
         const exportData = comparisonData.map(row => ({
             '상태': getStatusLabel(row.status),
+            '불일치 항목': (row.mismatchItems || []).join(', '),
             '이름 (실제)': row.reference.name || '',
             '이름 (응답)': row.student.name,
             '학번': row.student.studentId,
@@ -1009,6 +1031,7 @@ const SatisfactionMatch = () => {
                                             sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                                         )}
                                     </th>
+                                    <th>불일치 항목</th>
                                     <th className="sortable" onClick={() => handleSort('name')}>
                                         이름 (실제/응답)
                                         {sortConfig.key === 'name' && (
@@ -1067,6 +1090,7 @@ const SatisfactionMatch = () => {
                                                     {getStatusLabel(row.status)}
                                                 </span>
                                             </td>
+                                            <td>{(row.mismatchItems || []).join(', ') || '-'}</td>
                                             <td className={!row.matchDetails.name ? 'mismatch-cell' : ''}>
                                                 <div className="data-content">
                                                     <span className="student-data">{row.student.name || '(응답 없음)'}</span>
