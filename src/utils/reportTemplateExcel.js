@@ -560,7 +560,9 @@ const fillParticipantSheet = (ws, rows) => {
   for (let r = dataStartRow + body.length; r <= 2171; r += 1) {
     const row = ws.getRow(r);
     for (let c = 1; c <= colCount; c += 1) {
-      row.getCell(c).value = '';
+      const cell = row.getCell(c);
+      cell.value = '';
+      cell.border = undefined;
     }
   }
   return ws;
