@@ -50,7 +50,7 @@ const DataExtractionView = () => {
 
     // Tabs state
     const [mainTab, setMainTab] = useState('career'); // 'career' | 'written'
-    const [subTab, setSubTab] = useState('dashboard'); // 'dashboard' as default
+    const [subTab, setSubTab] = useState('total'); // 'total' as default
 
     const monthlyStatsMap = useMemo(() => buildMonthlyStats(allRows), [allRows]);
     const monthOrder = useMemo(
@@ -213,13 +213,13 @@ const DataExtractionView = () => {
                 <div className="main-tabs" style={{ marginBottom: 20 }}>
                     <button
                         className={`main-tab ${mainTab === 'career' ? 'active' : ''}`}
-                        onClick={() => { setMainTab('career'); setSubTab('dashboard'); }}
+                        onClick={() => { setMainTab('career'); setSubTab('total'); }}
                     >
                         1. 진로개발/서류면접
                     </button>
                     <button
                         className={`main-tab ${mainTab === 'written' ? 'active' : ''}`}
-                        onClick={() => { setMainTab('written'); setSubTab('dashboard'); }}
+                        onClick={() => { setMainTab('written'); setSubTab('total'); }}
                     >
                         2. 서면첨삭
                     </button>
@@ -229,8 +229,24 @@ const DataExtractionView = () => {
                 <div className="sub-tabs" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
                     {mainTab === 'career' ? (
                         <>
-                            {['통합 현황', '월 총 건수', '유형별 현황', '진행자별 건수', '학년별(참석)', '단과대별(참석)', '중복제외 학생수'].map((label, i) => {
-                                const id = i === 0 ? 'dashboard' : `1-${i}`;
+                            <button
+                                key="total"
+                                className={`excel-sheet-tab ${subTab === 'total' ? 'active' : ''}`}
+                                onClick={() => setSubTab('total')}
+                            >
+                                전체
+                            </button>
+                            {monthOrder.map((month, i) => (
+                                <button
+                                    key={`month-${i + 1}`}
+                                    className={`excel-sheet-tab ${subTab === `month-${i + 1}` ? 'active' : ''}`}
+                                    onClick={() => setSubTab(`month-${i + 1}`)}
+                                >
+                                    {month}월
+                                </button>
+                            ))}
+                            {['월 총 건수', '유형별 현황', '진행자별 건수', '학년별(참석)', '단과대별(참석)', '중복제외 학생수'].map((label, i) => {
+                                const id = `1-${i + 1}`;
                                 return (
                                     <button
                                         key={id}
@@ -244,8 +260,24 @@ const DataExtractionView = () => {
                         </>
                     ) : (
                         <>
-                            {['통합 현황', '월 총 건수', '유형별', '학년별(완료)', '단과대별(완료)'].map((label, i) => {
-                                const id = i === 0 ? 'dashboard' : `2-${i}`;
+                            <button
+                                key="total"
+                                className={`excel-sheet-tab ${subTab === 'total' ? 'active' : ''}`}
+                                onClick={() => setSubTab('total')}
+                            >
+                                전체
+                            </button>
+                            {monthOrder.map((month, i) => (
+                                <button
+                                    key={`month-${i + 1}`}
+                                    className={`excel-sheet-tab ${subTab === `month-${i + 1}` ? 'active' : ''}`}
+                                    onClick={() => setSubTab(`month-${i + 1}`)}
+                                >
+                                    {month}월
+                                </button>
+                            ))}
+                            {['월 총 건수', '유형별', '학년별(완료)', '단과대별(완료)'].map((label, i) => {
+                                const id = `2-${i + 1}`;
                                 return (
                                     <button
                                         key={id}
@@ -261,29 +293,88 @@ const DataExtractionView = () => {
                 </div>
 
                 <div className="extraction-grid-container">
-                    {monthOrder.map(month => {
-                        const stats = monthlyStatsMap.get(month);
-                        return (
-                            <div key={month} className="month-card" style={{ marginBottom: 32, borderBottom: '1px solid #eee', pb: 20 }}>
-                                <h3 style={{ borderLeft: '4px solid #00462A', paddingLeft: 12, marginBottom: 16 }}>{month}월 데이터 추출 결과</h3>
-
-                                {renderSubTabContent(month, stats)}
-
-                                {renderValidation(month)}
-                                {renderAnomalies(month)}
-                            </div>
-                        );
-                    })}
+                    {subTab === 'dashboard' ? (
+                        // 통합 현황 탭: 월별 카드 표시
+                        monthOrder.map(month => {
+                            const stats = monthlyStatsMap.get(month);
+                            return (
+                                <div key={month} className="month-card" style={{ marginBottom: 32, borderBottom: '1px solid #eee', pb: 20 }}>
+                                    <h3 style={{ borderLeft: '4px solid #00462A', paddingLeft: 12, marginBottom: 16 }}>{month}월 데이터 추출 결과</h3>
+                                    {renderSubTabContent(month, stats)}
+                                    {renderValidation(month)}
+                                    {renderAnomalies(month)}
+                                </div>
+                            );
+                        })
+                    ) : (
+                        // 기타 탭: 단일 컨텐츠 표시
+                        <div style={{ marginBottom: 32 }}>
+                            {renderSubTabContent()}
+                        </div>
+                    )}
                 </div>
             </div>
         );
     };
 
-    const renderSubTabContent = (month, stats) => {
+    const calculateTotalStats = () => {
+        const allRows = [];
+        const allMonthlyStats = {
+            realtime: { applied: { career: 0, interviewGeneral: 0, interviewSpecial: 0 }, attended: { career: 0, interviewGeneral: 0, interviewSpecial: 0 }, absent: { career: 0, interviewGeneral: 0, interviewSpecial: 0 } },
+            offline: { completed: { korEng: 0, linked: 0 } }
+        };
+
+        // 모든 월의 데이터를 통합
+        monthlyStatsMap.forEach((stats, month) => {
+            allRows.push(...stats.rows);
+            
+            // 실시간 데이터 통합
+            allMonthlyStats.realtime.applied.career += stats.realtime.applied.career;
+            allMonthlyStats.realtime.applied.interviewGeneral += stats.realtime.applied.interviewGeneral;
+            allMonthlyStats.realtime.applied.interviewSpecial += stats.realtime.applied.interviewSpecial;
+            
+            allMonthlyStats.realtime.attended.career += stats.realtime.attended.career;
+            allMonthlyStats.realtime.attended.interviewGeneral += stats.realtime.attended.interviewGeneral;
+            allMonthlyStats.realtime.attended.interviewSpecial += stats.realtime.attended.interviewSpecial;
+            
+            allMonthlyStats.realtime.absent.career += stats.realtime.absent.career;
+            allMonthlyStats.realtime.absent.interviewGeneral += stats.realtime.absent.interviewGeneral;
+            allMonthlyStats.realtime.absent.interviewSpecial += stats.realtime.absent.interviewSpecial;
+            
+            // 오프라인 데이터 통합
+            allMonthlyStats.offline.completed.korEng += stats.offline.completed.korEng;
+            allMonthlyStats.offline.completed.linked += stats.offline.completed.linked;
+        });
+
+        return {
+            rows: allRows,
+            realtime: allMonthlyStats.realtime,
+            offline: allMonthlyStats.offline
+        };
+    };
+
+    const renderSubTabContent = (month = null, stats = null) => {
         if (subTab === 'dashboard') {
+            if (!month || !stats) return <div>데이터를 선택해주세요</div>;
+            return mainTab === 'career' ? renderExcelDashboard(month, stats) : renderWrittenDashboard(month, stats);
+        }
+        if (subTab === 'total') {
+            // 전체 통합 탭
+            const allStats = calculateTotalStats();
+            return mainTab === 'career' ? renderExcelDashboard('전체', allStats) : renderWrittenDashboard('전체', allStats);
+        }
+        if (subTab.startsWith('month-')) {
+            // 월별 탭 (month-1, month-2 등)
+            const monthIndex = parseInt(subTab.split('-')[1]) - 1;
+            const month = monthOrder[monthIndex];
+            const stats = monthlyStatsMap.get(month);
+            if (!stats) return <div>{month}월 데이터가 없습니다</div>;
             return mainTab === 'career' ? renderExcelDashboard(month, stats) : renderWrittenDashboard(month, stats);
         }
         if (subTab === '1-1') {
+            // 월 총 건수 - 전체 데이터 합계 표시
+            const allStats = calculateTotalStats();
+            const rt = allStats.realtime;
             return (
                 <table className="comparison-table">
                     <thead>
@@ -296,17 +387,18 @@ const DataExtractionView = () => {
                     </thead>
                     <tbody>
                         <tr>
-                            <td>{month}월 합계</td>
-                            <td>{stats.realtime.applied.career + stats.realtime.applied.interviewGeneral + stats.realtime.applied.interviewSpecial}</td>
-                            <td>{stats.realtime.attended.career + stats.realtime.attended.interviewGeneral + stats.realtime.attended.interviewSpecial}</td>
-                            <td>{stats.realtime.absent.career + stats.realtime.absent.interviewGeneral + stats.realtime.absent.interviewSpecial}</td>
+                            <td>전체 합계</td>
+                            <td>{rt.applied.career + rt.applied.interviewGeneral + rt.applied.interviewSpecial}</td>
+                            <td>{rt.attended.career + rt.attended.interviewGeneral + rt.attended.interviewSpecial}</td>
+                            <td>{rt.absent.career + rt.absent.interviewGeneral + rt.absent.interviewSpecial}</td>
                         </tr>
                     </tbody>
                 </table>
             );
         }
         if (subTab === '1-2') {
-            const rt = stats.realtime;
+            const allStats = calculateTotalStats();
+            const rt = allStats.realtime;
             const types = [
                 { id: 'career', label: '진로개발' },
                 { id: 'interviewGeneral', label: '서류면접(일반)' },
@@ -344,12 +436,13 @@ const DataExtractionView = () => {
             );
         }
         if (subTab === '1-3') {
+            const allStats = calculateTotalStats();
             const consultants = new Map();
-            stats.rows.filter(r => r.sourceKind === 'realtime').forEach(r => {
+            allStats.rows.filter(r => r.sourceKind === 'realtime').forEach(r => {
                 const name = r.consultant || '미지정';
                 if (!consultants.has(name)) consultants.set(name, { applied: 0, attended: 0 });
                 const obj = consultants.get(name);
-                if (r.isApplied) obj.applied++;
+                obj.applied++;
                 if (r.isAttended) obj.attended++;
             });
             return (
@@ -357,19 +450,26 @@ const DataExtractionView = () => {
                     <thead>
                         <tr>
                             <th>상담사</th>
-                            <th>신청 건수</th>
-                            <th>참석 건수</th>
+                            <th>신청</th>
+                            <th>참석</th>
+                            <th>불참</th>
                         </tr>
                     </thead>
                     <tbody>
                         {Array.from(consultants.entries()).map(([name, counts]) => (
-                            <tr key={name}><td>{name}</td><td>{counts.applied}</td><td>{counts.attended}</td></tr>
+                            <tr key={name}>
+                                <td>{name}</td>
+                                <td>{counts.applied}</td>
+                                <td>{counts.attended}</td>
+                                <td>{counts.applied - counts.attended}</td>
+                            </tr>
                         ))}
                     </tbody>
                 </table>
             );
         }
         if (subTab === '1-4' || subTab === '1-5') {
+            const allStats = calculateTotalStats();
             const isGrade = subTab === '1-4';
             const categories = isGrade ? ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'] : COLLEGE_ORDER;
             const types = [
@@ -377,7 +477,7 @@ const DataExtractionView = () => {
                 { id: 'interviewGeneral', label: '서류면접(일반)' },
                 { id: 'interviewSpecial', label: '서류면접(특화)' }
             ];
-
+            
             return (
                 <div style={{ overflowX: 'auto' }}>
                     <table className="comparison-table" style={{ minWidth: isGrade ? 'auto' : 800 }}>
@@ -393,7 +493,7 @@ const DataExtractionView = () => {
                                 <tr key={cat}>
                                     <td>{cat}</td>
                                     {types.map(type => {
-                                        const count = stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended && r.typeUpperId === type.id && (
+                                        const count = allStats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended && r.typeUpperId === type.id && (
                                             isGrade ? (
                                                 cat === '대학원' ? (r.grade || '').includes('대학원') :
                                                     (cat === '5학년 이상' ? parseInt(r.grade) >= 5 : `${parseInt(r.grade)}학년` === cat)
@@ -403,7 +503,7 @@ const DataExtractionView = () => {
                                     })}
                                     <td style={{ fontWeight: 700 }}>
                                         {types.reduce((sum, type) => {
-                                            return sum + stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended && (
+                                            return sum + allStats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended && r.typeUpperId === type.id && (
                                                 isGrade ? (
                                                     cat === '대학원' ? (r.grade || '').includes('대학원') :
                                                         (cat === '5학년 이상' ? parseInt(r.grade) >= 5 : `${parseInt(r.grade)}학년` === cat)
@@ -416,10 +516,10 @@ const DataExtractionView = () => {
                             <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
                                 <td>합계</td>
                                 {types.map(type => (
-                                    <td key={type.id}>{stats.realtime.attended[type.id]}</td>
+                                    <td key={type.id}>{allStats.realtime.attended[type.id]}</td>
                                 ))}
                                 <td style={{ color: '#c62828' }}>
-                                    {stats.realtime.attended.career + stats.realtime.attended.interviewGeneral + stats.realtime.attended.interviewSpecial}
+                                    {allStats.realtime.attended.career + allStats.realtime.attended.interviewGeneral + allStats.realtime.attended.interviewSpecial}
                                 </td>
                             </tr>
                         </tbody>
@@ -429,10 +529,16 @@ const DataExtractionView = () => {
         }
 
         if (subTab === '1-6') {
+            const allStats = calculateTotalStats();
+            const uniqueStudents = new Set();
+            allStats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended).forEach(r => {
+                const studentId = r.studentId || r.studentName || 'unknown';
+                uniqueStudents.add(studentId);
+            });
             return (
                 <div style={{ padding: 16, background: '#f0f4f8', borderRadius: 8 }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#00462A' }}>
-                        중복 제외 참여학생 수: {stats.uniqueParticipants.totalUnique}명
+                        중복 제외 참여학생 수: {uniqueStudents.size}명
                     </div>
                 </div>
             );
@@ -440,32 +546,35 @@ const DataExtractionView = () => {
 
         // Written Tabs
         if (subTab === '2-1') {
+            const allStats = calculateTotalStats();
             return (
                 <table className="comparison-table">
                     <thead>
                         <tr><th>구분</th><th>완료 건수 (첨삭중 포함)</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>{month}월 총 완료</td><td>{stats.offline.completed.linked + stats.offline.completed.korEng}</td></tr>
+                        <tr><td>전체 총 완료</td><td>{allStats.offline.completed.linked + allStats.offline.completed.korEng}</td></tr>
                     </tbody>
                 </table>
             );
         }
         if (subTab === '2-2') {
+            const allStats = calculateTotalStats();
             return (
                 <table className="comparison-table">
                     <thead>
                         <tr><th>유형</th><th>건수</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>국문/영문</td><td>{stats.offline.completed.korEng}</td></tr>
-                        <tr><td>연계</td><td>{stats.offline.completed.linked}</td></tr>
-                        <tr style={{ fontWeight: 700 }}><td>합계</td><td>{stats.offline.completed.korEng + stats.offline.completed.linked}</td></tr>
+                        <tr><td>국문/영문</td><td>{allStats.offline.completed.korEng}</td></tr>
+                        <tr><td>연계</td><td>{allStats.offline.completed.linked}</td></tr>
+                        <tr style={{ fontWeight: 700 }}><td>합계</td><td>{allStats.offline.completed.korEng + allStats.offline.completed.linked}</td></tr>
                     </tbody>
                 </table>
             );
         }
         if (subTab === '2-3' || subTab === '2-4') {
+            const allStats = calculateTotalStats();
             const isGrade = subTab === '2-3';
             const categories = isGrade ? ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'] : COLLEGE_ORDER;
             const types = [
@@ -488,7 +597,7 @@ const DataExtractionView = () => {
                                 <tr key={cat}>
                                     <td>{cat}</td>
                                     {types.map(type => {
-                                        const count = stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted && (
+                                        const count = allStats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted && (
                                             type.id === 'korEng' ? (r.typeSub === '국문' || r.typeSub === '영문') : (r.typeSub === '연계')
                                         ) && (
                                                 isGrade ? (
@@ -500,7 +609,7 @@ const DataExtractionView = () => {
                                     })}
                                     <td style={{ fontWeight: 700 }}>
                                         {types.reduce((sum, type) => {
-                                            return sum + stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted && (
+                                            return sum + allStats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted && (
                                                 type.id === 'korEng' ? (r.typeSub === '국문' || r.typeSub === '영문') : (r.typeSub === '연계')
                                             ) && (
                                                     isGrade ? (
@@ -515,10 +624,10 @@ const DataExtractionView = () => {
                             <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
                                 <td>합계</td>
                                 {types.map(type => (
-                                    <td key={type.id}>{stats.offline.completed[type.id]}</td>
+                                    <td key={type.id}>{allStats.offline.completed[type.id]}</td>
                                 ))}
                                 <td style={{ color: '#c62828' }}>
-                                    {stats.offline.completed.korEng + stats.offline.completed.linked}
+                                    {allStats.offline.completed.korEng + allStats.offline.completed.linked}
                                 </td>
                             </tr>
                         </tbody>
@@ -531,10 +640,63 @@ const DataExtractionView = () => {
     };
 
     const renderExcelDashboard = (month, stats) => {
+        if (!stats || !stats.realtime) {
+            return <div>데이터가 없습니다</div>;
+        }
+        
         const rt = stats.realtime;
         const totalApplied = rt.applied.career + rt.applied.interviewGeneral + rt.applied.interviewSpecial;
         const totalAttended = rt.attended.career + rt.attended.interviewGeneral + rt.attended.interviewSpecial;
         const totalAbsent = rt.absent.career + rt.absent.interviewGeneral + rt.absent.interviewSpecial;
+
+        // countByGradeAndType 데이터가 없으면 생성
+        if (!stats.countByGradeAndType) {
+            stats.countByGradeAndType = {};
+            const gradeOrder = ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'];
+            gradeOrder.forEach(grade => {
+                stats.countByGradeAndType[grade] = {
+                    career: 0,
+                    interviewGeneral: 0,
+                    interviewSpecial: 0
+                };
+            });
+            
+            // 데이터 계산
+            if (stats.rows) {
+                stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended).forEach(r => {
+                    const grade = r.grade || '기타';
+                    const normalizedGrade = grade.includes('대학원') ? '대학원' :
+                                          grade.includes('5학년') || parseInt(grade) >= 5 ? '5학년 이상' :
+                                          `${parseInt(grade)}학년`;
+                    
+                    if (stats.countByGradeAndType[normalizedGrade]) {
+                        stats.countByGradeAndType[normalizedGrade][r.typeUpperId]++;
+                    }
+                });
+            }
+        }
+
+        // countByCollegeAndType 데이터가 없으면 생성
+        if (!stats.countByCollegeAndType) {
+            stats.countByCollegeAndType = {};
+            COLLEGE_ORDER.forEach(college => {
+                stats.countByCollegeAndType[college] = {
+                    career: 0,
+                    interviewGeneral: 0,
+                    interviewSpecial: 0
+                };
+            });
+            
+            // 데이터 계산
+            if (stats.rows) {
+                stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended).forEach(r => {
+                    const college = r.college || '기타';
+                    if (stats.countByCollegeAndType[college]) {
+                        stats.countByCollegeAndType[college][r.typeUpperId]++;
+                    }
+                });
+            }
+        }
 
         return (
             <div className="excel-dashboard-grid">
@@ -667,6 +829,10 @@ const DataExtractionView = () => {
     };
 
     const renderWrittenDashboard = (month, stats) => {
+        if (!stats || !stats.offline) {
+            return <div>데이터가 없습니다</div>;
+        }
+        
         const off = stats.offline.completed;
         const total = off.linked + off.korEng;
         
