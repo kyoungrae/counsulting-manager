@@ -307,20 +307,38 @@ const DataExtractionView = () => {
         }
         if (subTab === '1-2') {
             const rt = stats.realtime;
+            const types = [
+                { id: 'career', label: '진로개발' },
+                { id: 'interviewGeneral', label: '서류면접(일반)' },
+                { id: 'interviewSpecial', label: '서류면접(특화)' }
+            ];
+            const categories = ['신청', '참석', '불참'];
+            
             return (
                 <table className="comparison-table">
                     <thead>
                         <tr>
-                            <th>유형</th>
-                            <th>신청</th>
-                            <th>참석</th>
-                            <th>불참</th>
+                            <th>구분</th>
+                            {types.map(type => <th key={type.id}>{type.label}</th>)}
+                            <th>합계</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>진로개발</td><td>{rt.applied.career}</td><td>{rt.attended.career}</td><td>{rt.absent.career}</td></tr>
-                        <tr><td>서류면접(일반)</td><td>{rt.applied.interviewGeneral}</td><td>{rt.attended.interviewGeneral}</td><td>{rt.absent.interviewGeneral}</td></tr>
-                        <tr><td>서류면접(특화)</td><td>{rt.applied.interviewSpecial}</td><td>{rt.attended.interviewSpecial}</td><td>{rt.absent.interviewSpecial}</td></tr>
+                        {categories.map(category => (
+                            <tr key={category}>
+                                <td>{category}</td>
+                                {types.map(type => {
+                                    const value = category === '신청' ? rt.applied[type.id] :
+                                                 category === '참석' ? rt.attended[type.id] : rt.absent[type.id];
+                                    return <td key={type.id}>{value}</td>;
+                                })}
+                                <td style={{ fontWeight: 700 }}>
+                                    {category === '신청' ? rt.applied.career + rt.applied.interviewGeneral + rt.applied.interviewSpecial :
+                                     category === '참석' ? rt.attended.career + rt.attended.interviewGeneral + rt.attended.interviewSpecial :
+                                     rt.absent.career + rt.absent.interviewGeneral + rt.absent.interviewSpecial}
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             );
@@ -351,67 +369,65 @@ const DataExtractionView = () => {
                 </table>
             );
         }
-        if (subTab === '1-4') {
-            const grads = { '1학년': 0, '2학년': 0, '3학년': 0, '4학년': 0, '5학년 이상': 0, '대학원': 0 };
-            stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended).forEach(r => {
-                const g = r.grade || '대학원';
-                const key = g.includes('대학원') ? '대학원' : (parseInt(g) >= 5 ? '5학년 이상' : `${parseInt(g)}학년`);
-                if (grads[key] !== undefined) grads[key]++;
-                else grads['대학원']++;
-            });
-            return (
-                <table className="comparison-table">
-                    <thead>
-                        <tr>
-                            {Object.keys(grads).map(k => <th key={k}>{k}</th>)}
-                            <th>합계</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            {Object.values(grads).map((v, i) => <td key={i}>{v}</td>)}
-                            <td>{Object.values(grads).reduce((a, b) => a + b, 0)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            );
-        }
-        if (subTab === '1-5') {
-            const colMap = {};
-            COLLEGE_ORDER.forEach(c => colMap[c] = 0);
-            const others = {};
-
-            stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended).forEach(r => {
-                const c = r.college;
-                if (!c) {
-                    colMap['대학원'] = (colMap['대학원'] || 0) + 1;
-                    return;
-                }
-                if (COLLEGE_ORDER.includes(c)) colMap[c]++;
-                else others[c] = (others[c] || 0) + 1;
-            });
-
-            const allCols = [...COLLEGE_ORDER, ...Object.keys(others)];
+        if (subTab === '1-4' || subTab === '1-5') {
+            const isGrade = subTab === '1-4';
+            const categories = isGrade ? ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'] : COLLEGE_ORDER;
+            const types = [
+                { id: 'career', label: '진로개발' },
+                { id: 'interviewGeneral', label: '서류면접(일반)' },
+                { id: 'interviewSpecial', label: '서류면접(특화)' }
+            ];
 
             return (
                 <div style={{ overflowX: 'auto' }}>
-                    <table className="comparison-table" style={{ minWidth: 1200 }}>
+                    <table className="comparison-table" style={{ minWidth: isGrade ? 'auto' : 800 }}>
                         <thead>
                             <tr>
-                                {allCols.map(c => <th key={c}>{c}</th>)}
+                                <th>구분</th>
+                                {types.map(type => <th key={type.id}>{type.label}</th>)}
                                 <th>합계</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                {allCols.map(c => <td key={c}>{colMap[c] || others[c] || 0}</td>)}
-                                <td>{Object.values(colMap).reduce((a, b) => a + b, 0) + Object.values(others).reduce((a, b) => a + b, 0)}</td>
+                            {categories.map(cat => (
+                                <tr key={cat}>
+                                    <td>{cat}</td>
+                                    {types.map(type => {
+                                        const count = stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended && r.typeUpperId === type.id && (
+                                            isGrade ? (
+                                                cat === '대학원' ? (r.grade || '').includes('대학원') :
+                                                    (cat === '5학년 이상' ? parseInt(r.grade) >= 5 : `${parseInt(r.grade)}학년` === cat)
+                                            ) : (r.college === cat || (!r.college && cat === '대학원'))
+                                        )).length;
+                                        return <td key={type.id}>{count}</td>;
+                                    })}
+                                    <td style={{ fontWeight: 700 }}>
+                                        {types.reduce((sum, type) => {
+                                            return sum + stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended && (
+                                                isGrade ? (
+                                                    cat === '대학원' ? (r.grade || '').includes('대학원') :
+                                                        (cat === '5학년 이상' ? parseInt(r.grade) >= 5 : `${parseInt(r.grade)}학년` === cat)
+                                                ) : (r.college === cat || (!r.college && cat === '대학원'))
+                                            )).length;
+                                        }, 0)}
+                                    </td>
+                                </tr>
+                            ))}
+                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
+                                <td>합계</td>
+                                {types.map(type => (
+                                    <td key={type.id}>{stats.realtime.attended[type.id]}</td>
+                                ))}
+                                <td style={{ color: '#c62828' }}>
+                                    {stats.realtime.attended.career + stats.realtime.attended.interviewGeneral + stats.realtime.attended.interviewSpecial}
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             );
         }
+
         if (subTab === '1-6') {
             return (
                 <div style={{ padding: 16, background: '#f0f4f8', borderRadius: 8 }}>
@@ -436,54 +452,74 @@ const DataExtractionView = () => {
             );
         }
         if (subTab === '2-2') {
-            const types = { '국문': 0, '영문': 0, '연계': 0 };
-            stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted).forEach(r => {
-                if (types[r.typeSub] !== undefined) types[r.typeSub]++;
-                else if (r.typeSub === '국문' || r.typeSub === '영문') types[r.typeSub]++;
-            });
             return (
                 <table className="comparison-table">
                     <thead>
                         <tr><th>유형</th><th>건수</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>국문</td><td>{stats.offline.completed.korEng} (국문/영문 합계)</td></tr>
+                        <tr><td>국문/영문</td><td>{stats.offline.completed.korEng}</td></tr>
                         <tr><td>연계</td><td>{stats.offline.completed.linked}</td></tr>
+                        <tr style={{ fontWeight: 700 }}><td>합계</td><td>{stats.offline.completed.korEng + stats.offline.completed.linked}</td></tr>
                     </tbody>
                 </table>
             );
         }
         if (subTab === '2-3' || subTab === '2-4') {
             const isGrade = subTab === '2-3';
-            const dataMap = {};
-            if (isGrade) {
-                ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'].forEach(k => dataMap[k] = 0);
-            } else {
-                COLLEGE_ORDER.forEach(k => dataMap[k] = 0);
-            }
+            const categories = isGrade ? ['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'] : COLLEGE_ORDER;
+            const types = [
+                { id: 'korEng', label: '국문/영문' },
+                { id: 'linked', label: '연계' }
+            ];
 
-            stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted).forEach(r => {
-                if (isGrade) {
-                    const g = r.grade || '대학원';
-                    const key = g.includes('대학원') ? '대학원' : (parseInt(g) >= 5 ? '5학년 이상' : `${parseInt(g)}학년`);
-                    if (dataMap[key] !== undefined) dataMap[key]++;
-                } else {
-                    if (dataMap[r.college] !== undefined) dataMap[r.college]++;
-                    else if (r.college) dataMap[r.college] = (dataMap[r.college] || 0) + 1;
-                }
-            });
-
-            const keys = Object.keys(dataMap);
             return (
                 <div style={{ overflowX: 'auto' }}>
-                    <table className="comparison-table">
+                    <table className="comparison-table" style={{ minWidth: isGrade ? 'auto' : 600 }}>
                         <thead>
-                            <tr>{keys.map(k => <th key={k}>{k}</th>)}<th>합계</th></tr>
+                            <tr>
+                                <th>구분</th>
+                                {types.map(type => <th key={type.id}>{type.label}</th>)}
+                                <th>합계</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                {keys.map(k => <td key={k}>{dataMap[k]}</td>)}
-                                <td>{Object.values(dataMap).reduce((a, b) => a + b, 0)}</td>
+                            {categories.map(cat => (
+                                <tr key={cat}>
+                                    <td>{cat}</td>
+                                    {types.map(type => {
+                                        const count = stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted && (
+                                            type.id === 'korEng' ? (r.typeSub === '국문' || r.typeSub === '영문') : (r.typeSub === '연계')
+                                        ) && (
+                                                isGrade ? (
+                                                    cat === '대학원' ? (r.grade || '').includes('대학원') :
+                                                        (cat === '5학년 이상' ? parseInt(r.grade) >= 5 : `${parseInt(r.grade)}학년` === cat)
+                                                ) : (r.college === cat || (!r.college && cat === '대학원'))
+                                            )).length;
+                                        return <td key={type.id}>{count}</td>;
+                                    })}
+                                    <td style={{ fontWeight: 700 }}>
+                                        {types.reduce((sum, type) => {
+                                            return sum + stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted && (
+                                                type.id === 'korEng' ? (r.typeSub === '국문' || r.typeSub === '영문') : (r.typeSub === '연계')
+                                            ) && (
+                                                    isGrade ? (
+                                                        cat === '대학원' ? (r.grade || '').includes('대학원') :
+                                                            (cat === '5학년 이상' ? parseInt(r.grade) >= 5 : `${parseInt(r.grade)}학년` === cat)
+                                                    ) : (r.college === cat || (!r.college && cat === '대학원'))
+                                                )).length;
+                                        }, 0)}
+                                    </td>
+                                </tr>
+                            ))}
+                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
+                                <td>합계</td>
+                                {types.map(type => (
+                                    <td key={type.id}>{stats.offline.completed[type.id]}</td>
+                                ))}
+                                <td style={{ color: '#c62828' }}>
+                                    {stats.offline.completed.korEng + stats.offline.completed.linked}
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -633,30 +669,84 @@ const DataExtractionView = () => {
     const renderWrittenDashboard = (month, stats) => {
         const off = stats.offline.completed;
         const total = off.linked + off.korEng;
+        
+        // 학생별 진행 횟수 계산
+        const studentCounts = new Map();
+        stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted).forEach(r => {
+            const studentId = r.studentId || r.studentName || 'unknown';
+            studentCounts.set(studentId, (studentCounts.get(studentId) || 0) + 1);
+        });
+        
+        // 진행 횟수별 학생 수 집계
+        const frequencyCount = { 1: 0, 2: 0, 3: 0, '4+': 0 };
+        studentCounts.forEach(count => {
+            if (count === 1) frequencyCount[1]++;
+            else if (count === 2) frequencyCount[2]++;
+            else if (count === 3) frequencyCount[3]++;
+            else if (count >= 4) frequencyCount['4+']++;
+        });
+        
+        // 중복값 제외 (실제 고유 학생 수)
+        const uniqueStudents = studentCounts.size;
+        
         return (
             <div className="excel-dashboard-grid">
                 <div className="excel-table-container">
-                    <div className="excel-summary-header">서면첨삭 완료 현황</div>
+                    <div className="excel-summary-header">서면첨삭 통계</div>
                     <table className="excel-style-table">
                         <thead>
                             <tr>
-                                <th className="excel-header-main">구분</th>
-                                <th className="excel-header-sub">국문/영문</th>
-                                <th className="excel-header-sub">연계</th>
-                                <th className="excel-header-sub">합계</th>
+                                <th className="excel-header-main" colSpan="2">구분</th>
+                                <th className="excel-header-sub">건수</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td className="excel-header-sub">완료 건수</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.linked}</td>
-                                <td className="excel-total-highlight">{total}</td>
+                                <td className="excel-header-sub" rowSpan="2">컨설팅+첨삭</td>
+                                <td className="excel-header-sub">진행건수</td>
+                                <td>{total}</td>
+                            </tr>
+                            <tr>
+                                <td className="excel-header-sub">중복학생제거(실제진행인원)</td>
+                                <td>{uniqueStudents}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                {/* 추가적인 학년/단과대별 대시보드도 동일한 스타일로 확장 가능 */}
+                
+                <div className="excel-table-container">
+                    <div className="excel-summary-header">진행 횟수별 통계</div>
+                    <table className="excel-style-table">
+                        <thead>
+                            <tr>
+                                <th className="excel-header-main" rowSpan="2">구분</th>
+                                <th className="excel-header-sub" colSpan="4">진행 횟수</th>
+                            </tr>
+                            <tr>
+                                <th className="excel-header-sub">1회</th>
+                                <th className="excel-header-sub">2회</th>
+                                <th className="excel-header-sub">3회</th>
+                                <th className="excel-header-sub">4회 이상</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td className="excel-header-sub">실제 컨설팅 진행건수</td>
+                                <td>{frequencyCount[1]}</td>
+                                <td>{frequencyCount[2]}</td>
+                                <td>{frequencyCount[3]}</td>
+                                <td>{frequencyCount['4+']}</td>
+                            </tr>
+                            <tr>
+                                <td className="excel-header-sub">중복값 제외</td>
+                                <td>{frequencyCount[1]}</td>
+                                <td>{frequencyCount[2]}</td>
+                                <td>{frequencyCount[3]}</td>
+                                <td>{frequencyCount['4+']}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     };
