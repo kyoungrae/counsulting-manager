@@ -950,6 +950,46 @@ const DataExtractionView = () => {
                 ))}
             </div>
 
+            {/* 업로드된 파일 목록 */}
+            {loadedFiles.length > 0 && (
+                <div style={{ marginBottom: 20, padding: 16, background: '#f8f9fa', borderRadius: 8 }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: '#333' }}>업로드된 파일 목록</h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {loadedFiles.map((file, index) => (
+                            <div key={index} style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 8,
+                                padding: '8px 12px', 
+                                background: '#fff', 
+                                borderRadius: 4,
+                                border: '1px solid #e0e0e0',
+                                minWidth: '200px',
+                                flex: '0 1 auto'
+                            }}>
+                                <FileText size={16} color="#666" />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: '14px', color: '#333', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {file.name}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                        <span style={{ fontSize: '11px', color: '#666', background: '#f0f0f0', padding: '1px 4px', borderRadius: 2 }}>
+                                            {file.zoneId === 'realtime' ? '진로개발/서류면접' : '서면첨삭'}
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: '#999' }}>
+                                            {(file.size / 1024).toFixed(1)} KB
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ marginTop: 12, fontSize: '12px', color: '#666' }}>
+                        총 {loadedFiles.length}개 파일 ({(loadedFiles.reduce((sum, f) => sum + f.size, 0) / 1024).toFixed(1)} KB)
+                    </div>
+                </div>
+            )}
+
             <div className="comparison-results">
                 {unknownTypeQueue.length > 0 && (
                     <div style={{ margin: 20, border: '1px solid #f0c36d', borderRadius: 8, padding: 12, background: '#fff8e8' }}>
