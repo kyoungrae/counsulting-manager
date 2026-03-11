@@ -415,7 +415,7 @@
     background: #00462A;
     color: white;
     border-color: #00462A;
-    box-shadow: 0 2px 4px rgba(0,70,42,0.2);
+    box-shadow: 0 2px 4px rgba(0, 70, 42, 0.2);
 }
 
 .extraction-grid-container {
@@ -429,9 +429,82 @@
 }
 
 .validation-box {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .anomaly-box {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Excel Style Dashboard */
+.excel-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+    align-items: start;
+}
+
+.excel-style-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.85rem;
+    border: 2px solid #ccc;
+    background: white;
+}
+
+.excel-style-table th,
+.excel-style-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: center;
+}
+
+.excel-header-main {
+    background-color: #3b82f6;
+    /* Blue in image */
+    color: white;
+    font-weight: 700;
+}
+
+.excel-header-sub {
+    background-color: #f3f4f6;
+    color: #374151;
+    font-weight: 600;
+}
+
+.excel-total-row {
+    font-weight: 700;
+}
+
+.excel-total-highlight {
+    background-color: #fef08a !important;
+    /* Yellow highlight */
+}
+
+.excel-total-orange {
+    background-color: #fb923c !important;
+    /* Orange highlight */
+    color: white;
+}
+
+.excel-side-header {
+    background-color: #3b82f6;
+    color: white;
+    font-weight: 700;
+    width: 80px;
+}
+
+.excel-summary-header {
+    background-color: #00462A;
+    color: white;
+    padding: 8px 16px;
+    display: inline-block;
+    border-radius: 4px 4px 0 0;
+    font-weight: 600;
+}
+
+.excel-college-matrix {
+    grid-column: 1 / -1;
+    /* Full width for college table */
+    margin-top: 20px;
 }

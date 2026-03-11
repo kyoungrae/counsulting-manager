@@ -50,7 +50,7 @@ const DataExtractionView = () => {
 
     // Tabs state
     const [mainTab, setMainTab] = useState('career'); // 'career' | 'written'
-    const [subTab, setSubTab] = useState('1-1'); // '1-1' to '1-6' or '2-1' to '2-4'
+    const [subTab, setSubTab] = useState('dashboard'); // 'dashboard' as default
 
     const monthlyStatsMap = useMemo(() => buildMonthlyStats(allRows), [allRows]);
     const monthOrder = useMemo(
@@ -213,13 +213,13 @@ const DataExtractionView = () => {
                 <div className="main-tabs" style={{ marginBottom: 20 }}>
                     <button
                         className={`main-tab ${mainTab === 'career' ? 'active' : ''}`}
-                        onClick={() => { setMainTab('career'); setSubTab('1-1'); }}
+                        onClick={() => { setMainTab('career'); setSubTab('dashboard'); }}
                     >
                         1. 진로개발/서류면접
                     </button>
                     <button
                         className={`main-tab ${mainTab === 'written' ? 'active' : ''}`}
-                        onClick={() => { setMainTab('written'); setSubTab('2-1'); }}
+                        onClick={() => { setMainTab('written'); setSubTab('dashboard'); }}
                     >
                         2. 서면첨삭
                     </button>
@@ -229,8 +229,8 @@ const DataExtractionView = () => {
                 <div className="sub-tabs" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
                     {mainTab === 'career' ? (
                         <>
-                            {['월 총 건수', '유형별 현황', '진행자별 건수', '학년별(참석)', '단과대별(참석)', '중복제외 학생수'].map((label, i) => {
-                                const id = `1-${i + 1}`;
+                            {['통합 현황', '월 총 건수', '유형별 현황', '진행자별 건수', '학년별(참석)', '단과대별(참석)', '중복제외 학생수'].map((label, i) => {
+                                const id = i === 0 ? 'dashboard' : `1-${i}`;
                                 return (
                                     <button
                                         key={id}
@@ -244,8 +244,8 @@ const DataExtractionView = () => {
                         </>
                     ) : (
                         <>
-                            {['월 총 건수', '유형별', '학년별(완료)', '단과대별(완료)'].map((label, i) => {
-                                const id = `2-${i + 1}`;
+                            {['통합 현황', '월 총 건수', '유형별', '학년별(완료)', '단과대별(완료)'].map((label, i) => {
+                                const id = i === 0 ? 'dashboard' : `2-${i}`;
                                 return (
                                     <button
                                         key={id}
@@ -280,6 +280,9 @@ const DataExtractionView = () => {
     };
 
     const renderSubTabContent = (month, stats) => {
+        if (subTab === 'dashboard') {
+            return mainTab === 'career' ? renderExcelDashboard(month, stats) : renderWrittenDashboard(month, stats);
+        }
         if (subTab === '1-1') {
             return (
                 <table className="comparison-table">
@@ -489,6 +492,173 @@ const DataExtractionView = () => {
         }
 
         return null;
+    };
+
+    const renderExcelDashboard = (month, stats) => {
+        const rt = stats.realtime;
+        const totalApplied = rt.applied.career + rt.applied.interviewGeneral + rt.applied.interviewSpecial;
+        const totalAttended = rt.attended.career + rt.attended.interviewGeneral + rt.attended.interviewSpecial;
+        const totalAbsent = rt.absent.career + rt.absent.interviewGeneral + rt.absent.interviewSpecial;
+
+        return (
+            <div className="excel-dashboard-grid">
+                {/* 1. 유형별 참석여부 */}
+                <div className="excel-table-container">
+                    <div className="excel-summary-header">유형별 참석여부</div>
+                    <table className="excel-style-table">
+                        <thead>
+                            <tr>
+                                <th rowSpan="2" className="excel-header-main">유형별<br />참석여부</th>
+                                <th rowSpan="2" className="excel-header-sub">진로개발</th>
+                                <th colSpan="2" className="excel-header-sub">서류면접</th>
+                                <th rowSpan="2" className="excel-header-sub">합계</th>
+                            </tr>
+                            <tr>
+                                <th className="excel-header-sub">일반</th>
+                                <th className="excel-header-sub">특화</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td className="excel-header-sub">신청</td>
+                                <td>{rt.applied.career}</td>
+                                <td>{rt.applied.interviewGeneral}</td>
+                                <td>{rt.applied.interviewSpecial}</td>
+                                <td className="excel-total-orange">{totalApplied}</td>
+                            </tr>
+                            <tr>
+                                <td className="excel-header-sub">참석</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.career}</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.interviewGeneral}</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.interviewSpecial}</td>
+                                <td className="excel-total-highlight" style={{ color: '#c62828', fontWeight: 700 }}>{totalAttended}</td>
+                            </tr>
+                            <tr>
+                                <td className="excel-header-sub">불참</td>
+                                <td>{rt.absent.career}</td>
+                                <td>{rt.absent.interviewGeneral}</td>
+                                <td>{rt.absent.interviewSpecial}</td>
+                                <td>{totalAbsent}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* 2. 유형별 학년별 */}
+                <div className="excel-table-container">
+                    <div className="excel-summary-header">유형별 학년별 (참석인원 한해)</div>
+                    <table className="excel-style-table">
+                        <thead>
+                            <tr>
+                                <th rowSpan="2" className="excel-header-main">유형별<br />학년별</th>
+                                <th rowSpan="2" className="excel-header-sub">진로개발</th>
+                                <th colSpan="2" className="excel-header-sub">서류면접</th>
+                                <th rowSpan="2" className="excel-header-sub">합계</th>
+                            </tr>
+                            <tr>
+                                <th className="excel-header-sub">일반</th>
+                                <th className="excel-header-sub">특화</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Object.keys(stats.countByGradeAndType).map(grade => {
+                                const row = stats.countByGradeAndType[grade];
+                                const rowTotal = row.career + row.interviewGeneral + row.interviewSpecial;
+                                return (
+                                    <tr key={grade}>
+                                        <td className="excel-header-sub">{grade}</td>
+                                        <td>{row.career}</td>
+                                        <td>{row.interviewGeneral}</td>
+                                        <td>{row.interviewSpecial}</td>
+                                        <td style={{ color: '#c62828', fontWeight: 700 }}>{rowTotal}</td>
+                                    </tr>
+                                );
+                            })}
+                            <tr className="excel-total-row">
+                                <td className="excel-header-sub">합계</td>
+                                <td>{rt.attended.career}</td>
+                                <td>{rt.attended.interviewGeneral}</td>
+                                <td>{rt.attended.interviewSpecial}</td>
+                                <td className="excel-total-highlight">{totalAttended}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* 3. 단과대학별 - Full Width */}
+                <div className="excel-college-matrix">
+                    <div className="excel-summary-header">유형별 단과대학별 (참석인원 한해)</div>
+                    <table className="excel-style-table">
+                        <thead>
+                            <tr>
+                                <th rowSpan="2" className="excel-header-main" style={{ width: 150 }}>유형별<br />단과대학별</th>
+                                <th rowSpan="2" className="excel-header-sub">진로개발</th>
+                                <th colSpan="2" className="excel-header-sub">서류면접</th>
+                                <th rowSpan="2" className="excel-header-sub">합계</th>
+                            </tr>
+                            <tr>
+                                <th className="excel-header-sub">일반</th>
+                                <th className="excel-header-sub">특화</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {COLLEGE_ORDER.map(college => {
+                                const row = stats.countByCollegeAndType[college];
+                                if (!row) return null;
+                                const rowTotal = row.career + row.interviewGeneral + row.interviewSpecial;
+                                return (
+                                    <tr key={college}>
+                                        <td className="excel-header-sub">{college}</td>
+                                        <td>{row.career}</td>
+                                        <td>{row.interviewGeneral}</td>
+                                        <td>{row.interviewSpecial}</td>
+                                        <td style={{ color: '#c62828', fontWeight: 700 }}>{rowTotal}</td>
+                                    </tr>
+                                );
+                            })}
+                            <tr className="excel-total-row">
+                                <td className="excel-header-sub">합계</td>
+                                <td>{rt.attended.career}</td>
+                                <td>{rt.attended.interviewGeneral}</td>
+                                <td>{rt.attended.interviewSpecial}</td>
+                                <td className="excel-total-highlight">{totalAttended}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
+    const renderWrittenDashboard = (month, stats) => {
+        const off = stats.offline.completed;
+        const total = off.linked + off.korEng;
+        return (
+            <div className="excel-dashboard-grid">
+                <div className="excel-table-container">
+                    <div className="excel-summary-header">서면첨삭 완료 현황</div>
+                    <table className="excel-style-table">
+                        <thead>
+                            <tr>
+                                <th className="excel-header-main">구분</th>
+                                <th className="excel-header-sub">국문/영문</th>
+                                <th className="excel-header-sub">연계</th>
+                                <th className="excel-header-sub">합계</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td className="excel-header-sub">완료 건수</td>
+                                <td>{off.korEng}</td>
+                                <td>{off.linked}</td>
+                                <td className="excel-total-highlight">{total}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {/* 추가적인 학년/단과대별 대시보드도 동일한 스타일로 확장 가능 */}
+            </div>
+        );
     };
 
     return (
