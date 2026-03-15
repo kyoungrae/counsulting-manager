@@ -9,7 +9,7 @@
 .upload-section {
     display: flex;
     gap: 20px;
-    height: 200px;
+    height: 180px;
 }
 
 .drop-zone {
