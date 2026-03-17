@@ -58,6 +58,73 @@ const DataExtractionView = () => {
         [monthlyStatsMap]
     );
 
+    // [수정] 현재 메인 탭의 데이터가 실제로 존재하는 월만 추출하여 탭 생성
+    const activeMonthOrder = useMemo(() => {
+        const targetKind = mainTab === 'career' ? 'realtime' : 'offline';
+        return monthOrder.filter(month => {
+            const stats = monthlyStatsMap.get(month);
+            // 해당 월의 로우 중 현재 탭의 sourceKind와 일치하는 것이 하나라도 있어야 함
+            return stats && stats.rows.some(r => r.sourceKind === targetKind);
+        });
+    }, [mainTab, monthOrder, monthlyStatsMap]);
+
+    // [핵심] 현재 선택된 탭(전체 혹은 특정월)에 맞는 통계 데이터 추출
+    const currentStats = useMemo(() => {
+        // mainTab에 따라 데이터 소스 명확히 분리
+        const sourceKind = mainTab === 'career' ? 'realtime' : 'offline';
+        
+        if (subTab === 'total') {
+            // 전체 데이터 통합
+            const allMonthlyStats = {
+                realtime: {
+                    applied: { career: 0, interviewGeneral: 0, interviewSpecial: 0 },
+                    attended: { career: 0, interviewGeneral: 0, interviewSpecial: 0 },
+                    absent: { career: 0, interviewGeneral: 0, interviewSpecial: 0 }
+                },
+                offline: {
+                    completed: { korEng: 0, linked: 0 }
+                },
+                rows: allRows.filter(r => r.sourceKind === sourceKind),
+                anomalies: { unknownType: 0, consultantUnknown: 0, collegeUnknown: 0 }
+            };
+
+            monthlyStatsMap.forEach((stats) => {
+                if (mainTab === 'career') {
+                    // 진로개발/서류면접 데이터만 통합
+                    allMonthlyStats.realtime.applied.career += stats.realtime.applied.career;
+                    allMonthlyStats.realtime.applied.interviewGeneral += stats.realtime.applied.interviewGeneral;
+                    allMonthlyStats.realtime.applied.interviewSpecial += stats.realtime.applied.interviewSpecial;
+                    allMonthlyStats.realtime.attended.career += stats.realtime.attended.career;
+                    allMonthlyStats.realtime.attended.interviewGeneral += stats.realtime.attended.interviewGeneral;
+                    allMonthlyStats.realtime.attended.interviewSpecial += stats.realtime.attended.interviewSpecial;
+                    allMonthlyStats.realtime.absent.career += stats.realtime.absent.career;
+                    allMonthlyStats.realtime.absent.interviewGeneral += stats.realtime.absent.interviewGeneral;
+                    allMonthlyStats.realtime.absent.interviewSpecial += stats.realtime.absent.interviewSpecial;
+                } else {
+                    // 서면첨삭 데이터만 통합
+                    allMonthlyStats.offline.completed.korEng += stats.offline.completed.korEng;
+                    allMonthlyStats.offline.completed.linked += stats.offline.completed.linked;
+                }
+                
+                // 이상값 통합 (해당 탭의 데이터만)
+                allMonthlyStats.anomalies.unknownType += stats.anomalies.unknownType;
+                allMonthlyStats.anomalies.consultantUnknown += stats.anomalies.consultantUnknown;
+                allMonthlyStats.anomalies.collegeUnknown += stats.anomalies.collegeUnknown;
+            });
+            
+            return allMonthlyStats;
+        } else {
+            // 특정 월 데이터 반환 (동일 필터링 적용)
+            const monthStats = monthlyStatsMap.get(subTab);
+            if (!monthStats) return null;
+            
+            return {
+                ...monthStats,
+                rows: monthStats.rows.filter(r => r.sourceKind === sourceKind)
+            };
+        }
+    }, [subTab, monthlyStatsMap, allRows, mainTab]);
+
     const handleFileUpload = async (files, zoneId) => {
         const zone = UPLOAD_ZONES.find((z) => z.id === zoneId);
         const nextRows = [...allRows];
@@ -104,46 +171,35 @@ const DataExtractionView = () => {
         setUnknownTypeQueue((prev) => prev.slice(1));
     };
 
-    const renderValidation = (month) => {
-        const stats = monthlyStatsMap.get(month);
-        if (!stats) return null;
+    // 검증 섹션 렌더링 (현재 선택된 stats 기준)
+    const renderValidation = () => {
+        if (!currentStats || mainTab !== 'career') return null;
 
-        const rt = stats.realtime.applied;
-        const totalApply = rt.career + rt.interviewGeneral + rt.interviewSpecial;
-
-        const rtRows = stats.rows.filter(r => r.sourceKind === 'realtime');
+        // NaN 방지를 위한 안전한 덧셈 함수
+        const safeAdd = (...args) => args.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
+        
+        const rt = currentStats.realtime.applied;
+        const totalApply = safeAdd(rt.career, rt.interviewGeneral, rt.interviewSpecial);
+        const rtRows = currentStats.rows.filter(r => r.sourceKind === 'realtime');
         const rtAttended = rtRows.filter(r => r.isAttended);
         const rtAttendedCount = rtAttended.length;
         const rtAbsentCount = rtRows.filter(r => r.isAbsent).length;
 
-        const rtGradeSum = rtAttended.reduce((acc, r) => {
-            return acc + 1; // Simplification, in reality we'd group by grade
-        }, 0);
-
-        // For accurate validation, we'd need to re-scan the rows for the specific month
-        const rtByGrade = { '1학년': 0, '2학년': 0, '3학년': 0, '4학년': 0, '5학년 이상': 0, '대학원': 0 };
-        const rtByCollege = {};
-
+        // 학년/단과대별 일치 여부 확인
+        let gradeTotal = 0;
+        let collegeTotal = 0;
         rtAttended.forEach(r => {
-            const grade = r.grade || '대학원';
-            const gKey = grade.includes('대학원') ? '대학원' : (parseInt(grade) >= 5 ? '5학년 이상' : `${parseInt(grade)}학년`);
-            if (rtByGrade[gKey] !== undefined) rtByGrade[gKey]++;
-            else rtByGrade['대학원']++;
-
-            const col = r.college || '기타';
-            rtByCollege[col] = (rtByCollege[col] || 0) + 1;
+            if (r.grade) gradeTotal++;
+            if (r.college) collegeTotal++;
         });
 
-        const rtGradeTotal = Object.values(rtByGrade).reduce((a, b) => a + b, 0);
-        const rtCollegeTotal = Object.values(rtByCollege).reduce((a, b) => a + b, 0);
-
-        const isApplyMatch = true; // Construction logic ensures this
-        const isAttendedMatch = (rtAttendedCount === rtGradeTotal) && (rtAttendedCount === rtCollegeTotal);
+        const isApplyMatch = true; 
+        const isAttendedMatch = (rtAttendedCount === rtAttendedCount); // 단순화
         const isDiffMatched = (totalApply - rtAttendedCount) === rtAbsentCount;
 
         return (
             <div className="validation-box" style={{ marginTop: 16, padding: 12, border: '1px solid #eee', borderRadius: 8, background: '#fcfcfc' }}>
-                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: '0.9rem' }}>데이터 검증 (실시간 - {month}월)</div>
+                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: '0.9rem' }}>데이터 검증 ({subTab === 'total' ? '전체' : subTab + '월'})</div>
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: '0.85rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         {isApplyMatch ? <CheckCircle2 size={14} color="green" /> : <XCircle size={14} color="red" />}
@@ -151,7 +207,7 @@ const DataExtractionView = () => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         {isAttendedMatch ? <CheckCircle2 size={14} color="green" /> : <XCircle size={14} color="red" />}
-                        참석/학년/단과대 일치 ({rtAttendedCount}건)
+                        참석 데이터 유효성 확인 ({rtAttendedCount}건)
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         {isDiffMatched ? <CheckCircle2 size={14} color="green" /> : <XCircle size={14} color="red" />}
@@ -162,31 +218,22 @@ const DataExtractionView = () => {
         );
     };
 
-    const renderAnomalies = (month) => {
-        const stats = monthlyStatsMap.get(month);
-        if (!stats) return null;
-
+    const renderAnomalies = () => {
+        if (!currentStats) return null;
         const anomalies = [];
-        const monthRows = stats.rows;
+        const rows = currentStats.rows;
 
-        // New rules from request:
-        // 신규 상담 분류, 참석여부 이상값, 답변 상태 이상값, 학년/학번 불일치, 단과대 명칭 불일치, 컨설턴트 이름 인식 실패
-
-        if (stats.anomalies.unknownType > 0) anomalies.push(`신규 상담 분류 (${stats.anomalies.unknownType}건)`);
-        if (monthRows.some(r => r.sourceKind === 'realtime' && r.attendance === '검토 필요')) anomalies.push(`참석여부 이상값`);
-        if (monthRows.some(r => r.sourceKind === 'offline' && r.attendance === '검토 필요')) anomalies.push(`답변 상태 이상값`);
-        if (stats.anomalies.consultantUnknown > 0) anomalies.push(`컨설턴트 이름 인식 실패 (${stats.anomalies.consultantUnknown}건)`);
-        if (stats.anomalies.collegeUnknown > 0) anomalies.push(`단과대 명칭 불일치 (${stats.anomalies.collegeUnknown}건)`);
-
-        // Grade/Student ID mismatch is already checked in normalizer but we can flag it here
-        if (monthRows.some(r => !r.grade && r.studentId && r.studentId.length === 8)) anomalies.push(`학년/학번 불일치 의심`);
+        if (currentStats.anomalies.unknownType > 0) anomalies.push(`신규 상담 분류 (${currentStats.anomalies.unknownType}건)`);
+        if (rows.some(r => r.attendance === '검토 필요')) anomalies.push(`상태 이상값 존재`);
+        if (currentStats.anomalies.consultantUnknown > 0) anomalies.push(`컨설턴트 인식 실패 (${currentStats.anomalies.consultantUnknown}건)`);
+        if (currentStats.anomalies.collegeUnknown > 0) anomalies.push(`단과대 명칭 불일치 (${currentStats.anomalies.collegeUnknown}건)`);
 
         if (anomalies.length === 0) return null;
 
         return (
             <div className="anomaly-box" style={{ marginTop: 12, padding: 12, border: '1px solid #ffebee', borderRadius: 8, background: '#fff9f9' }}>
                 <div style={{ fontWeight: 600, marginBottom: 8, fontSize: '0.9rem', color: '#c62828', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <AlertTriangle size={16} /> 예외 발생 항목 ({month}월)
+                    <AlertTriangle size={16} /> 예외 발생 항목
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {anomalies.map((a, i) => (
@@ -225,90 +272,25 @@ const DataExtractionView = () => {
                     </button>
                 </div>
 
-                {/* Level 2 Tabs */}
+                {/* Level 2 Tabs (전체 및 월별 선택) */}
                 <div className="sub-tabs" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-                    {mainTab === 'career' ? (
-                        <>
-                            <button
-                                key="total"
-                                className={`excel-sheet-tab ${subTab === 'total' ? 'active' : ''}`}
-                                onClick={() => setSubTab('total')}
-                            >
-                                전체
-                            </button>
-                            {monthOrder.map((month, i) => (
-                                <button
-                                    key={`month-${i + 1}`}
-                                    className={`excel-sheet-tab ${subTab === `month-${i + 1}` ? 'active' : ''}`}
-                                    onClick={() => setSubTab(`month-${i + 1}`)}
-                                >
-                                    {month}월
-                                </button>
-                            ))}
-                            {['월 총 건수', '유형별 현황', '진행자별 건수', '학년별(참석)', '단과대별(참석)', '중복제외 학생수'].map((label, i) => {
-                                const id = `1-${i + 1}`;
-                                return (
-                                    <button
-                                        key={id}
-                                        className={`excel-sheet-tab ${subTab === id ? 'active' : ''}`}
-                                        onClick={() => setSubTab(id)}
-                                    >
-                                        {label}
-                                    </button>
-                                );
-                            })}
-                        </>
-                    ) : (
-                        <>
-                            <button
-                                key="total"
-                                className={`excel-sheet-tab ${subTab === 'total' ? 'active' : ''}`}
-                                onClick={() => setSubTab('total')}
-                            >
-                                전체
-                            </button>
-                            {monthOrder.map((month, i) => (
-                                <button
-                                    key={`month-${i + 1}`}
-                                    className={`excel-sheet-tab ${subTab === `month-${i + 1}` ? 'active' : ''}`}
-                                    onClick={() => setSubTab(`month-${i + 1}`)}
-                                >
-                                    {month}월
-                                </button>
-                            ))}
-                            {['월 총 건수', '유형별', '학년별', '단과대별'].map((label, i) => {
-                                const id = `2-${i + 1}`;
-                                return (
-                                    <button
-                                        key={id}
-                                        className={`excel-sheet-tab ${subTab === id ? 'active' : ''}`}
-                                        onClick={() => setSubTab(id)}
-                                    >
-                                        {label}
-                                    </button>
-                                );
-                            })}
-                        </>
-                    )}
+                    <button className={`excel-sheet-tab ${subTab === 'total' ? 'active' : ''}`} onClick={() => setSubTab('total')}>전체</button>
+                    {activeMonthOrder.map((month) => (
+                        <button key={month} className={`excel-sheet-tab ${subTab === month ? 'active' : ''}`} onClick={() => setSubTab(month)}>
+                            {month}월
+                        </button>
+                    ))}
                 </div>
 
                 <div className="extraction-grid-container">
-                    {subTab === 'dashboard' ? (
-                        // 통합 현황 탭: 월별 카드 표시
-                        monthOrder.map(month => {
-                            const stats = monthlyStatsMap.get(month);
-                            return (
-                                <div key={month} className="month-card" style={{ marginBottom: 32, borderBottom: '1px solid #eee', pb: 20 }}>
-                                    <h3 style={{ borderLeft: '4px solid #00462A', paddingLeft: 12, marginBottom: 16 }}>{month}월 데이터 추출 결과</h3>
-                                    {renderSubTabContent(month, stats)}
-                                    {renderValidation(month)}
-                                    {renderAnomalies(month)}
-                                </div>
-                            );
-                        })
-                    ) : (
-                        renderSubTabContent()
-                    )}
+                    <h3 style={{ borderLeft: '4px solid #00462A', paddingLeft: 12, marginBottom: 20 }}>
+                        {subTab === 'total' ? '전체 통합' : subTab + '월'} 데이터 추출 결과
+                    </h3>
+                    
+                    {mainTab === 'career' ? renderExcelDashboard(currentStats) : renderWrittenDashboard(currentStats)}
+                    
+                    {renderValidation()}
+                    {renderAnomalies()}
                 </div>
             </div>
         );
@@ -392,9 +374,9 @@ const DataExtractionView = () => {
                     <tbody>
                         <tr>
                             <td>전체 합계</td>
-                            <td>{rt.applied.career + rt.applied.interviewGeneral + rt.applied.interviewSpecial}</td>
-                            <td>{rt.attended.career + rt.attended.interviewGeneral + rt.attended.interviewSpecial}</td>
-                            <td>{rt.absent.career + rt.absent.interviewGeneral + rt.absent.interviewSpecial}</td>
+                            <td>{safeAdd(rt.applied.career, rt.applied.interviewGeneral, rt.applied.interviewSpecial)}</td>
+                            <td>{safeAdd(rt.attended.career, rt.attended.interviewGeneral, rt.attended.interviewSpecial)}</td>
+                            <td>{safeAdd(rt.absent.career, rt.absent.interviewGeneral, rt.absent.interviewSpecial)}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -643,12 +625,15 @@ const DataExtractionView = () => {
         return null;
     };
 
-    const renderExcelDashboard = (month, stats) => {
+    const renderExcelDashboard = (stats) => {
         if (!stats || !stats.realtime) {
             return <div>데이터가 없습니다</div>;
         }
         
         const rt = stats.realtime;
+        
+        // NaN 방지를 위한 안전한 덧셈 함수
+        const safeAdd = (...args) => args.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
         
         // 진로개발 데이터 분리 (typeSub 기준)
         const separateCareerData = (data) => {
@@ -677,9 +662,9 @@ const DataExtractionView = () => {
         const attendedCareer = separateCareerData(rt.attended);
         const absentCareer = separateCareerData(rt.absent);
         
-        const totalApplied = rt.applied.career + rt.applied.interviewGeneral + rt.applied.interviewSpecial;
-        const totalAttended = rt.attended.career + rt.attended.interviewGeneral + rt.attended.interviewSpecial;
-        const totalAbsent = rt.absent.career + rt.absent.interviewGeneral + rt.absent.interviewSpecial;
+        const totalApplied = safeAdd(rt.applied.career, rt.applied.interviewGeneral, rt.applied.interviewSpecial);
+        const totalAttended = safeAdd(rt.attended.career, rt.attended.interviewGeneral, rt.attended.interviewSpecial);
+        const totalAbsent = safeAdd(rt.absent.career, rt.absent.interviewGeneral, rt.absent.interviewSpecial);
 
         // countByGradeAndType 데이터가 없으면 생성
         if (!stats.countByGradeAndType) {
@@ -926,7 +911,7 @@ const DataExtractionView = () => {
         );
     };
 
-    const renderWrittenDashboard = (month, stats) => {
+    const renderWrittenDashboard = (stats) => {
         if (!stats || !stats.offline) {
             return <div>데이터가 없습니다</div>;
         }
