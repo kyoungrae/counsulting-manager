@@ -195,11 +195,11 @@ const EwhaGrid = ({ title }) => {
 
             // --- Content Validation ---
             if (isCareer) {
-                // 진로개발: Only allow if Type is '진로개발'
-                // Check if any item is NOT '진로개발'
-                const invalidItem = mappedData.find(item => item.type && item.type.trim() !== '진로개발');
+                // 진로개발: 허용되는 상담분류 (진로개발, 웰컴세션, 연계 등)
+                const allowedTypes = ['진로개발', '웰컴세션', '진로연계', '연계'];
+                const invalidItem = mappedData.find(item => item.type && !allowedTypes.some(t => item.type.trim().includes(t)));
                 if (invalidItem) {
-                    alert('진로개발 업로드는 상담분류가 "진로개발"인 파일만 가능합니다.');
+                    alert('진로개발 업로드는 상담분류가 "진로개발", "웰컴세션", "연계" 등인 파일만 가능합니다.');
                     return;
                 }
             } else if (isInterview) {

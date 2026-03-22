@@ -34,8 +34,12 @@ const readExcel = (file) => new Promise((resolve, reject) => {
 const normalizeFileName = (n) => String(n ?? '').normalize('NFC').trim();
 
 const UPLOAD_ZONES = [
-    { id: 'realtime', label: '실시간 신청현황 (진로개발·서류면접)', desc: '진로개발, 서류면접 또는 통합 파일', accept: (n) => { const s = normalizeFileName(n); return s.includes('신청현황') && !s.includes('서면첨삭'); } },
-    { id: 'offline', label: '서면첨삭 신청현황', desc: '서면첨삭 전용 파일', accept: (n) => { const s = normalizeFileName(n); return s.includes('신청현황') && s.includes('서면첨삭'); } }
+    { id: 'realtime', label: '실시간 신청현황 (진로개발·서류면접)', desc: '진로개발, 서류면접 또는 통합 파일', accept: (n) => { const s = normalizeFileName(n); return s.includes('신청현황') && !s.includes('서면첨삭') && !s.includes('서면 첨삭'); } },
+    { id: 'offline', label: '서면첨삭 신청현황', desc: '서면첨삭 전용 파일', accept: (n) => { 
+        const s = normalizeFileName(n); 
+        return (s.includes('서면첨삭') || s.includes('서면 첨삭')) && 
+               (s.includes('신청현황') || s.includes('현황') || s.includes('통계') || s.includes('시트'));
+    } }
 ];
 
 const DataExtractionView = () => {
@@ -636,31 +640,28 @@ const DataExtractionView = () => {
         const safeAdd = (...args) => args.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
         
         // 진로개발 데이터 분리 (typeSub 기준)
-        const separateCareerData = (data) => {
+        const separateCareerData = (conditionFn) => {
             let 진로연계 = 0;
-            let 취업연계 = 0;
+            let 진로개발 = 0; // 진로개발과 웰컴세션
             
             if (stats.rows) {
                 stats.rows.forEach(r => {
-                    if (r.sourceKind === 'realtime' && r.typeSub === '진로개발') {
-                        // 진로개발은 현재 진로연계로만 처리 (추후 세분화 가능)
-                        진로연계++;
+                    if (r.sourceKind === 'realtime' && r.typeUpper === '진로개발' && conditionFn(r)) {
+                        if (r.typeSub === '진로개발' || r.typeSub === '웰컴세션') {
+                            진로개발++;
+                        } else {
+                            진로연계++; // 연계 등 다른 하위분류
+                        }
                     }
                 });
             }
             
-            // 데이터가 없으면 임시로 반반 나누기
-            if (진로연계 === 0 && 취업연계 === 0 && data.career > 0) {
-                진로연계 = Math.floor(data.career / 2);
-                취업연계 = Math.ceil(data.career / 2);
-            }
-            
-            return { 진로연계, 취업연계 };
+            return { 진로연계, 진로개발 };
         };
         
-        const appliedCareer = separateCareerData(rt.applied);
-        const attendedCareer = separateCareerData(rt.attended);
-        const absentCareer = separateCareerData(rt.absent);
+        const appliedCareer = separateCareerData(r => r.isApplied);
+        const attendedCareer = separateCareerData(r => r.isAttended);
+        const absentCareer = separateCareerData(r => r.isAbsent);
         
         const totalApplied = safeAdd(rt.applied.career, rt.applied.interviewGeneral, rt.applied.interviewSpecial);
         const totalAttended = safeAdd(rt.attended.career, rt.attended.interviewGeneral, rt.attended.interviewSpecial);
@@ -676,7 +677,7 @@ const DataExtractionView = () => {
                     interviewGeneral: 0,
                     interviewSpecial: 0,
                     진로연계: 0,
-                    취업연계: 0
+                    진로개발: 0
                 };
             });
             
@@ -689,10 +690,10 @@ const DataExtractionView = () => {
                                           `${parseInt(grade)}학년`;
                     
                     if (stats.countByGradeAndType[normalizedGrade]) {
-                        // typeSub 기준으로 데이터 분리
-                        if (r.typeSub === '진로개발') {
-                            // 진로개발은 typeSub가 '진로연계' 또는 '취업연계'로 세분화되지 않으면 진로연계로 처리
-                            stats.countByGradeAndType[normalizedGrade].진로연계 = (stats.countByGradeAndType[normalizedGrade].진로연계 || 0) + 1;
+                        // typeSub 기준으로 데이터 분리 (웰컴세션 포함)
+                        if (r.typeSub === '진로개발' || r.typeSub === '웰컴세션') {
+                            // 진로개발과 웰컴세션은 진로개발로 처리
+                            stats.countByGradeAndType[normalizedGrade].진로개발 = (stats.countByGradeAndType[normalizedGrade].진로개발 || 0) + 1;
                         } else if (r.typeSub === '일반') {
                             stats.countByGradeAndType[normalizedGrade].interviewGeneral++;
                         } else if (r.typeSub === '특화') {
@@ -709,13 +710,13 @@ const DataExtractionView = () => {
         // realtime 데이터도 typeSub 기준으로 재계산
         if (!stats.realtime.진로연계) {
             stats.realtime.진로연계 = 0;
-            stats.realtime.취업연계 = 0;
+            stats.realtime.진로개발 = 0;
             
             if (stats.rows) {
                 stats.rows.filter(r => r.sourceKind === 'realtime').forEach(r => {
-                    if (r.typeSub === '진로개발') {
+                    if (r.typeSub === '진로개발' || r.typeSub === '웰컴세션') {
                         if (r.isAttended) {
-                            stats.realtime.진로연계++;
+                            stats.realtime.진로개발++;
                         }
                     } else if (r.typeSub === '일반') {
                         if (r.isAttended) {
@@ -739,7 +740,7 @@ const DataExtractionView = () => {
                     interviewGeneral: 0,
                     interviewSpecial: 0,
                     진로연계: 0,
-                    취업연계: 0
+                    진로개발: 0
                 };
             });
             
@@ -748,9 +749,10 @@ const DataExtractionView = () => {
                 stats.rows.filter(r => r.sourceKind === 'realtime' && r.isAttended).forEach(r => {
                     const college = r.college || '기타';
                     if (stats.countByCollegeAndType[college]) {
-                        // typeSub 기준으로 데이터 분리
-                        if (r.typeSub === '진로개발') {
-                            stats.countByCollegeAndType[college].진로연계 = (stats.countByCollegeAndType[college].진로연계 || 0) + 1;
+                        // typeSub 기준으로 데이터 분리 (웰컴세션 포함)
+                        if (r.typeSub === '진로개발' || r.typeSub === '웰컴세션') {
+                            // 진로개발과 웰컴세션은 진로개발로 처리
+                            stats.countByCollegeAndType[college].진로개발 = (stats.countByCollegeAndType[college].진로개발 || 0) + 1;
                         } else if (r.typeSub === '일반') {
                             stats.countByCollegeAndType[college].interviewGeneral++;
                         } else if (r.typeSub === '특화') {
@@ -779,7 +781,7 @@ const DataExtractionView = () => {
                             </tr>
                             <tr>
                                 <th className="excel-header-sub" style={{ width: 120 }}>진로연계</th>
-                                <th className="excel-header-sub" style={{ width: 120 }}>취업연계</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>진로개발</th>
                                 <th className="excel-header-sub" style={{ width: 120 }}>일반</th>
                                 <th className="excel-header-sub" style={{ width: 120 }}>특화</th>
                             </tr>
@@ -788,7 +790,7 @@ const DataExtractionView = () => {
                             <tr>
                                 <td className="excel-header-sub">신청</td>
                                 <td>{appliedCareer.진로연계}</td>
-                                <td>{appliedCareer.취업연계}</td>
+                                <td>{appliedCareer.진로개발}</td>
                                 <td>{rt.applied.interviewGeneral}</td>
                                 <td>{rt.applied.interviewSpecial}</td>
                                 <td className="excel-total-orange">{totalApplied}</td>
@@ -796,7 +798,7 @@ const DataExtractionView = () => {
                             <tr>
                                 <td className="excel-header-sub">참석</td>
                                 <td style={{ color: '#c62828', fontWeight: 700 }}>{attendedCareer.진로연계}</td>
-                                <td style={{ color: '#c62828', fontWeight: 700 }}>{attendedCareer.취업연계}</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{attendedCareer.진로개발}</td>
                                 <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.interviewGeneral}</td>
                                 <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.interviewSpecial}</td>
                                 <td className="excel-total-highlight" style={{ color: '#c62828', fontWeight: 700 }}>{totalAttended}</td>
@@ -804,7 +806,7 @@ const DataExtractionView = () => {
                             <tr>
                                 <td className="excel-header-sub">불참</td>
                                 <td>{absentCareer.진로연계}</td>
-                                <td>{absentCareer.취업연계}</td>
+                                <td>{absentCareer.진로개발}</td>
                                 <td>{rt.absent.interviewGeneral}</td>
                                 <td>{rt.absent.interviewSpecial}</td>
                                 <td>{totalAbsent}</td>
@@ -826,7 +828,7 @@ const DataExtractionView = () => {
                             </tr>
                             <tr>
                                 <th className="excel-header-sub" style={{ width: 120 }}>진로연계</th>
-                                <th className="excel-header-sub" style={{ width: 120 }}>취업연계</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>진로개발</th>
                                 <th className="excel-header-sub" style={{ width: 120 }}>일반</th>
                                 <th className="excel-header-sub" style={{ width: 120 }}>특화</th>
                             </tr>
@@ -835,25 +837,25 @@ const DataExtractionView = () => {
                             {Object.keys(stats.countByGradeAndType).map(grade => {
                                 const row = stats.countByGradeAndType[grade];
                                 
-                                // 이미 분리된 데이터 사용
-                                const rowTotal = row.진로연계 + row.취업연계 + row.interviewGeneral + row.interviewSpecial;
+                                // 이미 분리된 데이터 사용 (NaN 방지)
+                                const rowTotal = safeAdd(row.진로연계, row.진로개발, row.interviewGeneral, row.interviewSpecial);
                                 return (
                                     <tr key={grade}>
                                         <td className="excel-header-sub">{grade}</td>
-                                        <td>{row.진로연계}</td>
-                                        <td>{row.취업연계}</td>
-                                        <td>{row.interviewGeneral}</td>
-                                        <td>{row.interviewSpecial}</td>
+                                        <td>{row.진로연계 || 0}</td>
+                                        <td>{row.진로개발 || 0}</td>
+                                        <td>{row.interviewGeneral || 0}</td>
+                                        <td>{row.interviewSpecial || 0}</td>
                                         <td style={{ color: '#c62828', fontWeight: 700 }}>{rowTotal}</td>
                                     </tr>
                                 );
                             })}
                             <tr className="excel-total-row">
                                 <td className="excel-header-sub">합계</td>
-                                <td>{attendedCareer.진로연계}</td>
-                                <td>{attendedCareer.취업연계}</td>
-                                <td>{rt.attended.interviewGeneral}</td>
-                                <td>{rt.attended.interviewSpecial}</td>
+                                <td>{attendedCareer.진로연계 || 0}</td>
+                                <td>{attendedCareer.진로개발 || 0}</td>
+                                <td>{rt.attended.interviewGeneral || 0}</td>
+                                <td>{rt.attended.interviewSpecial || 0}</td>
                                 <td className="excel-total-highlight">{totalAttended}</td>
                             </tr>
                         </tbody>
@@ -873,7 +875,7 @@ const DataExtractionView = () => {
                             </tr>
                             <tr>
                                 <th className="excel-header-sub" style={{ width: 120 }}>진로연계</th>
-                                <th className="excel-header-sub" style={{ width: 120 }}>취업연계</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>진로개발</th>
                                 <th className="excel-header-sub" style={{ width: 120 }}>일반</th>
                                 <th className="excel-header-sub" style={{ width: 120 }}>특화</th>
                             </tr>
@@ -883,25 +885,25 @@ const DataExtractionView = () => {
                                 const row = stats.countByCollegeAndType[college];
                                 if (!row) return null;
                                 
-                                // 이미 분리된 데이터 사용
-                                const rowTotal = row.진로연계 + row.취업연계 + row.interviewGeneral + row.interviewSpecial;
+                                // 이미 분리된 데이터 사용 (NaN 방지)
+                                const rowTotal = safeAdd(row.진로연계, row.진로개발, row.interviewGeneral, row.interviewSpecial);
                                 return (
                                     <tr key={college}>
                                         <td className="excel-header-sub">{college}</td>
-                                        <td>{row.진로연계}</td>
-                                        <td>{row.취업연계}</td>
-                                        <td>{row.interviewGeneral}</td>
-                                        <td>{row.interviewSpecial}</td>
+                                        <td>{row.진로연계 || 0}</td>
+                                        <td>{row.진로개발 || 0}</td>
+                                        <td>{row.interviewGeneral || 0}</td>
+                                        <td>{row.interviewSpecial || 0}</td>
                                         <td style={{ color: '#c62828', fontWeight: 700 }}>{rowTotal}</td>
                                     </tr>
                                 );
                             })}
                             <tr className="excel-total-row">
                                 <td className="excel-header-sub">합계</td>
-                                <td>{attendedCareer.진로연계}</td>
-                                <td>{attendedCareer.취업연계}</td>
-                                <td>{rt.attended.interviewGeneral}</td>
-                                <td>{rt.attended.interviewSpecial}</td>
+                                <td>{attendedCareer.진로연계 || 0}</td>
+                                <td>{attendedCareer.진로개발 || 0}</td>
+                                <td>{rt.attended.interviewGeneral || 0}</td>
+                                <td>{rt.attended.interviewSpecial || 0}</td>
                                 <td className="excel-total-highlight">{totalAttended}</td>
                             </tr>
                         </tbody>
@@ -916,12 +918,20 @@ const DataExtractionView = () => {
             return <div>데이터가 없습니다</div>;
         }
         
-        const off = stats.offline.completed;
-        const total = off.linked + off.korEng;
+        // NaN 방지를 위한 안전한 덧셈 함수
+        const safeAdd = (...args) => args.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
+        
+        // 서면첨삭은 불참이 없고 모두 참석으로 계산
+        const offlineData = stats.rows.filter(r => r.sourceKind === 'offline');
+        const appliedLinked = offlineData.filter(r => r.typeSub === '연계').length;
+        const appliedKor = offlineData.filter(r => r.typeSub === '국문').length;
+        const appliedEng = offlineData.filter(r => r.typeSub === '영문').length;
+        
+        const totalApplied = safeAdd(appliedLinked, appliedKor, appliedEng);
         
         // 학생별 진행 횟수 계산
         const studentCounts = new Map();
-        stats.rows.filter(r => r.sourceKind === 'offline' && r.isCompleted).forEach(r => {
+        offlineData.forEach(r => {
             const studentId = r.studentId || r.studentName || 'unknown';
             studentCounts.set(studentId, (studentCounts.get(studentId) || 0) + 1);
         });
@@ -953,107 +963,95 @@ const DataExtractionView = () => {
         
         return (
             <div className="excel-dashboard-grid">
-                {/* 1. 유형별 참석여부 */}
+                {/* 1. 참여현황 */}
                 <div className="excel-table-container">
-                    <div className="excel-summary-header">유형별 참석여부</div>
+                    <div className="excel-summary-header">참여현황</div>
                     <table className="excel-style-table">
                         <thead>
                             <tr>
                                 <th rowSpan="2" className="excel-header-main" style={{ width: 120 }}>유형별</th>
-                                <th colSpan="3" className="excel-header-sub">서면첨삭</th>
-                                <th rowSpan="2" className="excel-header-main" style={{ width: 80 }}>전체 합계</th>
+                                <th colSpan="3" className="excel-header-sub" style={{ width: 360 }}>서면첨삭</th>
+                                <th rowSpan="2" className="excel-header-main" style={{ width: 120 }}>비실시간<br />합계</th>
                             </tr>
                             <tr>
-                                <th className="excel-header-sub">취업연계</th>
-                                <th className="excel-header-sub">국문</th>
-                                <th className="excel-header-sub">영문</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>취업연계</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>국문</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>영문</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td className="excel-header-sub">신청</td>
-                                <td>{off.linked}</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.korEng}</td>
-                                <td style={{ color: '#c62828', fontWeight: 700 }}>{off.linked + off.korEng + off.korEng}</td>
+                                <td>{appliedLinked}</td>
+                                <td>{appliedKor}</td>
+                                <td>{appliedEng}</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{totalApplied}</td>
                             </tr>
                             <tr>
-                                <td className="excel-header-sub">완료</td>
-                                <td>{off.linked}</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.korEng}</td>
-                                <td style={{ color: '#c62828', fontWeight: 700 }}>{off.linked + off.korEng + off.korEng}</td>
+                                <td className="excel-header-sub">참석</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{appliedLinked}</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{appliedKor}</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }}>{appliedEng}</td>
+                                <td className="excel-total-highlight" style={{ color: '#c62828', fontWeight: 700 }}>{totalApplied}</td>
                             </tr>
                             <tr>
-                                <td className="excel-header-sub">미완료</td>
+                                <td className="excel-header-sub">불참</td>
                                 <td>0</td>
                                 <td>0</td>
                                 <td>0</td>
-                                <td style={{ color: '#c62828', fontWeight: 700 }}>0</td>
-                            </tr>
-                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
-                                <td className="excel-header-sub">전체 합계</td>
-                                <td>{off.linked}</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.korEng}</td>
-                                <td style={{ color: '#c62828' }}>{off.linked + off.korEng + off.korEng}</td>
+                                <td>0</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                {/* 2. 유형별 학년별 (참석인원 한해) */}
+                {/* 2. 학년별 (참석자 기준) */}
                 <div className="excel-table-container">
-                    <div className="excel-summary-header">유형별 학년별 (참석인원 한해)</div>
+                    <div className="excel-summary-header">학년별 (참석자 기준)</div>
                     <table className="excel-style-table">
                         <thead>
                             <tr>
-                                <th rowSpan="2" className="excel-header-main" style={{ width: 80 }}>구분</th>
-                                <th colSpan="2" className="excel-header-sub" style={{ width: 120 }}>국문/영문</th>
-                                <th colSpan="2" className="excel-header-sub" style={{ width: 120 }}>연계</th>
-                                <th rowSpan="2" className="excel-header-main" style={{ width: 80 }}>합계</th>
+                                <th rowSpan="2" className="excel-header-main" style={{ width: 120 }}>유형별</th>
+                                <th colSpan="3" className="excel-header-sub" style={{ width: 360 }}>서면첨삭</th>
+                                <th rowSpan="2" className="excel-header-main" style={{ width: 120 }}>비실시간<br />합계</th>
                             </tr>
                             <tr>
-                                <th className="excel-header-sub">신청</th>
-                                <th className="excel-header-sub">완료</th>
-                                <th className="excel-header-sub">신청</th>
-                                <th className="excel-header-sub">완료</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>취업연계</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>국문</th>
+                                <th className="excel-header-sub" style={{ width: 120 }}>영문</th>
                             </tr>
                         </thead>
                         <tbody>
                             {['1학년', '2학년', '3학년', '4학년', '5학년 이상', '대학원'].map(grade => {
                                 // 실제 서면첨삭 데이터에서 학년별로 집계
-                                const gradeData = stats.rows.filter(r => 
-                                    r.sourceKind === 'offline' && 
-                                    r.isCompleted &&
+                                const gradeData = offlineData.filter(r => 
                                     (grade === '대학원' ? (r.grade || '').includes('대학원') :
                                      grade === '5학년 이상' ? parseInt(r.grade) >= 5 :
                                      `${parseInt(r.grade)}학년` === grade)
                                 );
                                 
-                                const korEngCount = gradeData.filter(r => r.typeSub === '국문' || r.typeSub === '영문').length;
                                 const linkedCount = gradeData.filter(r => r.typeSub === '연계').length;
+                                const korCount = gradeData.filter(r => r.typeSub === '국문').length;
+                                const engCount = gradeData.filter(r => r.typeSub === '영문').length;
                                 
                                 return (
                                     <tr key={grade}>
                                         <td className="excel-header-sub">{grade}</td>
-                                        <td>{korEngCount}</td>
-                                        <td>{korEngCount}</td>
                                         <td>{linkedCount}</td>
-                                        <td>{linkedCount}</td>
+                                        <td>{korCount}</td>
+                                        <td>{engCount}</td>
                                         <td style={{ color: '#c62828', fontWeight: 700 }}>
-                                            {korEngCount + linkedCount}
+                                            {safeAdd(linkedCount, korCount, engCount)}
                                         </td>
                                     </tr>
                                 );
                             })}
-                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
+                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }} className="excel-total-row">
                                 <td className="excel-header-sub">합계</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.linked}</td>
-                                <td>{off.linked}</td>
-                                <td style={{ color: '#c62828' }}>{off.korEng + off.linked}</td>
+                                <td>{appliedLinked}</td>
+                                <td>{appliedKor}</td>
+                                <td>{appliedEng}</td>
+                                <td style={{ color: '#c62828' }} className="excel-total-highlight">{totalApplied}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1094,56 +1092,53 @@ const DataExtractionView = () => {
                     </table>
                 </div>
 
-                {/* 3. 유형별 단과대학별 (참석인원 한해) */}
+                {/* 3. 단과대별 (참석자 기준이며, 대학원의 단과대도 포함하고 있음) */}
                 <div className="excel-college-matrix">
-                    <div className="excel-summary-header">유형별 단과대학별 (참석인원 한해)</div>
+                    <div className="excel-summary-header">단과대별 (참석자 기준이며, 대학원의 단과대도 포함하고 있음)</div>
                     <table className="excel-style-table">
                         <thead>
                             <tr>
                                 <th rowSpan="2" className="excel-header-main" style={{ width: 150 }}>구분</th>
-                                <th colSpan="2" className="excel-header-sub" style={{ width: 120 }}>국문/영문</th>
-                                <th colSpan="2" className="excel-header-sub" style={{ width: 120 }}>연계</th>
+                                <th colSpan="3" className="excel-header-sub" style={{ width: 360 }}>서면첨삭</th>
                                 <th rowSpan="2" className="excel-header-sub" style={{ width: 120 }}>합계</th>
                             </tr>
                             <tr>
-                                <th className="excel-header-sub">신청</th>
-                                <th className="excel-header-sub">완료</th>
-                                <th className="excel-header-sub">신청</th>
-                                <th className="excel-header-sub">완료</th>
+                                <th className="excel-header-sub">취업연계</th>
+                                <th className="excel-header-sub">국문</th>
+                                <th className="excel-header-sub">영문</th>
                             </tr>
                         </thead>
                         <tbody>
                             {COLLEGE_ORDER.map(college => {
                                 // 실제 서면첨삭 데이터에서 단과대학별로 집계
-                                const collegeData = stats.rows.filter(r => 
-                                    r.sourceKind === 'offline' && 
-                                    r.isCompleted &&
+                                const collegeData = offlineData.filter(r => 
                                     (r.college === college || (!r.college && college === '대학원'))
                                 );
                                 
-                                const korEngCount = collegeData.filter(r => r.typeSub === '국문' || r.typeSub === '영문').length;
                                 const linkedCount = collegeData.filter(r => r.typeSub === '연계').length;
+                                const korCount = collegeData.filter(r => r.typeSub === '국문').length;
+                                const engCount = collegeData.filter(r => r.typeSub === '영문').length;
                                 
                                 return (
                                     <tr key={college}>
-                                        <td className="excel-header-sub">{college}</td>
-                                        <td>{korEngCount}</td>
-                                        <td>{korEngCount}</td>
+                                        <td className="excel-header-sub">{college === '대학원' ? '기타' : college}</td>
                                         <td>{linkedCount}</td>
-                                        <td>{linkedCount}</td>
+                                        <td>{korCount}</td>
+                                        <td>{engCount}</td>
                                         <td style={{ color: '#c62828', fontWeight: 700 }}>
-                                            {korEngCount + linkedCount}
+                                            {safeAdd(linkedCount, korCount, engCount)}
                                         </td>
                                     </tr>
                                 );
                             })}
-                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
+                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }} className="excel-total-row">
                                 <td className="excel-header-sub">합계</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.korEng}</td>
-                                <td>{off.linked}</td>
-                                <td>{off.linked}</td>
-                                <td style={{ color: '#c62828' }}>{off.korEng + off.linked}</td>
+                                <td>{appliedLinked}</td>
+                                <td>{appliedKor}</td>
+                                <td>{appliedEng}</td>
+                                <td style={{ color: '#c62828', fontWeight: 700 }} className="excel-total-highlight">
+                                    {totalApplied}
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -1217,19 +1212,6 @@ const DataExtractionView = () => {
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease',
                                 boxShadow: '0 2px 4px rgba(220, 53, 69, 0.1)',
-                                
-                            }}
-                            onMouseOver={(e) => {
-                                e.target.style.background = '#c82333';
-                                e.target.style.transform = 'translateY(-2px)';
-                                e.target.style.boxShadow = '0 4px 8px rgba(220, 53, 69, 0.15)';
-                                e.target.style.color = '#ffffff';
-                            }}
-                            onMouseOut={(e) => {
-                                e.target.style.background = '#e0e0e0';
-                                e.target.style.transform = 'translateY(0)';
-                                e.target.style.boxShadow = '0 2px 4px rgba(220, 53, 69, 0.1)';
-                                e.target.style.color = '#000000';
                             }}
                         >
                             초기화

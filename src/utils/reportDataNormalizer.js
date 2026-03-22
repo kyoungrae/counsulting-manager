@@ -166,10 +166,24 @@ export const inferConsultType = (rawType, kind, fileHintUpper, runtimeTypeMap = 
 };
 
 export const parseMonthFromFileName = (fileName) => {
-  const m = String(fileName || '').match(/(\d{1,2})\s*월/);
-  if (!m) return null;
-  const v = Number(m[1]);
-  return Number.isFinite(v) && v >= 1 && v <= 12 ? v : null;
+  const s = String(fileName || '');
+  
+  // 1. "X월" format
+  let m = s.match(/(\d{1,2})\s*월/);
+  if (m) {
+    const v = Number(m[1]);
+    if (Number.isFinite(v) && v >= 1 && v <= 12) return v;
+  }
+  
+  // 2. "(YY.M)" or "YY.M" format e.g. (26.1), (2026.01), 26.1
+  // This matches a 2 or 4 digit year, a dot, and a 1 or 2 digit month, possibly inside parens
+  m = s.match(/(?:\()?(\d{2,4})\.(\d{1,2})(?:\))?/);
+  if (m) {
+    const v = Number(m[2]);
+    if (Number.isFinite(v) && v >= 1 && v <= 12) return v;
+  }
+  
+  return null;
 };
 
 export const parseDateValue = (raw) => {
@@ -316,8 +330,13 @@ export const parseApplicationWorkbook = (jsonData, sheet, fileName, runtimeTypeM
 
   const fileMonth = parseMonthFromFileName(fileName);
   const dominantMonth = extractDominantMonth(parsed);
+  
+  // 파일명에서 월이 명시적으로 추출되면 전체 행을 해당 월로 통일
   const month = fileMonth || dominantMonth || null;
-  const rows = parsed.map((r) => ({ ...r, month: r.month || month }));
+  const rows = parsed.map((r) => {
+     const finalMonth = fileMonth ? fileMonth : (r.month || dominantMonth || null);
+     return { ...r, month: finalMonth };
+  });
 
   return {
     rows,
