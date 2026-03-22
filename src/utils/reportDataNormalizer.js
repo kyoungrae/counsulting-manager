@@ -128,13 +128,25 @@ const detectFileHintUpper = (fileName, kind) => {
   return '';
 };
 
-export const inferConsultType = (rawType, kind, fileHintUpper, runtimeTypeMap = {}) => {
+// 파일명에 (연계)가 는지여부로 typeSub 힌트 추출
+const detectFileHintSub = (fileName) => {
+  const n = normalizeText(fileName);
+  if (n.includes('(연계)') || n.startsWith('연계')) return '연계';
+  return '';
+};
+
+export const inferConsultType = (rawType, kind, fileHintUpper, runtimeTypeMap = {}, fileHintSub = '') => {
   const raw = normalizeText(rawType);
   const key = normalizeTypeKey(raw);
   if (key && runtimeTypeMap[key]) {
     const upper = runtimeTypeMap[key];
     const sub = upper === '서면첨삭' ? '국문' : (upper === '서류면접' ? '일반' : '진로개발');
     return { upper, sub, canonical: sub, unknownTypeKey: '' };
+  }
+
+  // 파일명에 (연계) 힌트가 있으면 서면첨삭-연계로 강제 처리
+  if (fileHintSub === '연계' && kind === 'offline') {
+    return { upper: '서면첨삭', sub: '연계', canonical: '연계', unknownTypeKey: '' };
   }
 
   const includes = (x) => raw.includes(x);
@@ -153,12 +165,12 @@ export const inferConsultType = (rawType, kind, fileHintUpper, runtimeTypeMap = 
   }
 
   if (!raw && fileHintUpper) {
-    const sub = fileHintUpper === '서류면접' ? '일반' : (fileHintUpper === '서면첨삭' ? '국문' : '진로개발');
+    const sub = fileHintSub || (fileHintUpper === '서류면접' ? '일반' : (fileHintUpper === '서면첨삭' ? '국문' : '진로개발'));
     return { upper: fileHintUpper, sub, canonical: sub, unknownTypeKey: '' };
   }
 
   if (raw && fileHintUpper) {
-    const sub = fileHintUpper === '서류면접' ? '일반' : (fileHintUpper === '서면첨삭' ? '국문' : '진로개발');
+    const sub = fileHintSub || (fileHintUpper === '서류면접' ? '일반' : (fileHintUpper === '서면첨삭' ? '국문' : '진로개발'));
     return { upper: fileHintUpper, sub, canonical: sub, unknownTypeKey: '' };
   }
 
@@ -244,6 +256,7 @@ export const parseApplicationWorkbook = (jsonData, sheet, fileName, runtimeTypeM
   const header = jsonData[0] || [];
   const kind = detectFileKind(fileName, header);
   const fileHintUpper = detectFileHintUpper(fileName, kind);
+  const fileHintSub = detectFileHintSub(fileName);
 
   const col = {
     applyDate: findColIndex(header, KEYWORDS.applyDate, 1),
@@ -276,7 +289,7 @@ export const parseApplicationWorkbook = (jsonData, sheet, fileName, runtimeTypeM
     if (!studentId && !name) continue;
 
     const rawType = normalizeText(row[col.type]);
-    const typeInfo = inferConsultType(rawType, kind, fileHintUpper, runtimeTypeMap);
+    const typeInfo = inferConsultType(rawType, kind, fileHintUpper, runtimeTypeMap, fileHintSub);
     if (typeInfo.unknownTypeKey) unknownTypeKeys.add(typeInfo.unknownTypeKey);
 
     const consultant = normalizeConsultantName(row[consultantIdx]);
@@ -390,7 +403,7 @@ export const buildMonthlyStats = (rows) => {
     const attendedOrCompleted = list.filter((r) => r.isAttended || r.isCompleted);
 
     const rtBy = (predicate, flag) => realtime.filter((r) => predicate(r) && r[flag]).length;
-    const offBy = (predicate) => offline.filter((r) => predicate(r) && r.isCompleted).length;
+    const offBy = (predicate) => offline.filter((r) => predicate(r)).length; // isCompleted 불필요 (연계 파일 등 완료일자 없는 경우 포함)
 
     const agg = {
       month,

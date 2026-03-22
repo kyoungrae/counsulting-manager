@@ -53,7 +53,7 @@ const DataExtractionView = () => {
     const [warnings, setWarnings] = useState([]);
 
     // Tabs state
-    const [mainTab, setMainTab] = useState('career'); // 'career' | 'written'
+    const [mainTab, setMainTab] = useState('career'); // 'career' | 'written' | 'all'
     const [subTab, setSubTab] = useState('total'); // 'total' as default
 
     const monthlyStatsMap = useMemo(() => buildMonthlyStats(allRows), [allRows]);
@@ -64,6 +64,13 @@ const DataExtractionView = () => {
 
     // [수정] 현재 메인 탭의 데이터가 실제로 존재하는 월만 추출하여 탭 생성
     const activeMonthOrder = useMemo(() => {
+        if (mainTab === 'all') {
+            // 전체 탭: realtime 또는 offline 데이터가 있는 모든 월
+            return monthOrder.filter(month => {
+                const stats = monthlyStatsMap.get(month);
+                return stats && stats.rows.length > 0;
+            });
+        }
         const targetKind = mainTab === 'career' ? 'realtime' : 'offline';
         return monthOrder.filter(month => {
             const stats = monthlyStatsMap.get(month);
@@ -75,7 +82,7 @@ const DataExtractionView = () => {
     // [핵심] 현재 선택된 탭(전체 혹은 특정월)에 맞는 통계 데이터 추출
     const currentStats = useMemo(() => {
         // mainTab에 따라 데이터 소스 명확히 분리
-        const sourceKind = mainTab === 'career' ? 'realtime' : 'offline';
+        const sourceKind = mainTab === 'career' ? 'realtime' : mainTab === 'written' ? 'offline' : null; // null = all
         
         if (subTab === 'total') {
             // 전체 데이터 통합
@@ -88,13 +95,13 @@ const DataExtractionView = () => {
                 offline: {
                     completed: { korEng: 0, linked: 0 }
                 },
-                rows: allRows.filter(r => r.sourceKind === sourceKind),
+                rows: sourceKind ? allRows.filter(r => r.sourceKind === sourceKind) : allRows,
                 anomalies: { unknownType: 0, consultantUnknown: 0, collegeUnknown: 0 }
             };
 
             monthlyStatsMap.forEach((stats) => {
-                if (mainTab === 'career') {
-                    // 진로개발/서류면접 데이터만 통합
+                // 진로개발/서류면접 데이터 통합
+                if (mainTab === 'career' || mainTab === 'all') {
                     allMonthlyStats.realtime.applied.career += stats.realtime.applied.career;
                     allMonthlyStats.realtime.applied.interviewGeneral += stats.realtime.applied.interviewGeneral;
                     allMonthlyStats.realtime.applied.interviewSpecial += stats.realtime.applied.interviewSpecial;
@@ -104,13 +111,14 @@ const DataExtractionView = () => {
                     allMonthlyStats.realtime.absent.career += stats.realtime.absent.career;
                     allMonthlyStats.realtime.absent.interviewGeneral += stats.realtime.absent.interviewGeneral;
                     allMonthlyStats.realtime.absent.interviewSpecial += stats.realtime.absent.interviewSpecial;
-                } else {
-                    // 서면첨삭 데이터만 통합
+                }
+                // 서면첨삭 데이터 통합
+                if (mainTab === 'written' || mainTab === 'all') {
                     allMonthlyStats.offline.completed.korEng += stats.offline.completed.korEng;
                     allMonthlyStats.offline.completed.linked += stats.offline.completed.linked;
                 }
                 
-                // 이상값 통합 (해당 탭의 데이터만)
+                // 이상값 통합
                 allMonthlyStats.anomalies.unknownType += stats.anomalies.unknownType;
                 allMonthlyStats.anomalies.consultantUnknown += stats.anomalies.consultantUnknown;
                 allMonthlyStats.anomalies.collegeUnknown += stats.anomalies.collegeUnknown;
@@ -118,13 +126,13 @@ const DataExtractionView = () => {
             
             return allMonthlyStats;
         } else {
-            // 특정 월 데이터 반환 (동일 필터링 적용)
+            // 특정 월 데이터 반환
             const monthStats = monthlyStatsMap.get(subTab);
             if (!monthStats) return null;
             
             return {
                 ...monthStats,
-                rows: monthStats.rows.filter(r => r.sourceKind === sourceKind)
+                rows: sourceKind ? monthStats.rows.filter(r => r.sourceKind === sourceKind) : monthStats.rows
             };
         }
     }, [subTab, monthlyStatsMap, allRows, mainTab]);
@@ -274,6 +282,12 @@ const DataExtractionView = () => {
                     >
                         2. 서면첨삭
                     </button>
+                    <button
+                        className={`main-tab ${mainTab === 'all' ? 'active' : ''}`}
+                        onClick={() => { setMainTab('all'); setSubTab('total'); }}
+                    >
+                        3. 전체
+                    </button>
                 </div>
 
                 {/* Level 2 Tabs (전체 및 월별 선택) */}
@@ -291,9 +305,13 @@ const DataExtractionView = () => {
                         {subTab === 'total' ? '전체 통합' : subTab + '월'} 데이터 추출 결과
                     </h3>
                     
-                    {mainTab === 'career' ? renderExcelDashboard(currentStats) : renderWrittenDashboard(currentStats)}
+                    {mainTab === 'career'
+                        ? renderExcelDashboard(currentStats)
+                        : mainTab === 'written'
+                        ? renderWrittenDashboard(currentStats)
+                        : renderAllDashboard(currentStats)}
                     
-                    {renderValidation()}
+                    {mainTab !== 'all' && renderValidation()}
                     {renderAnomalies()}
                 </div>
             </div>
@@ -629,10 +647,300 @@ const DataExtractionView = () => {
         return null;
     };
 
+    const renderAllDashboard = (stats) => {
+        if (!stats || !stats.rows) return <div>데이터가 없습니다</div>;
+
+        const safeAdd = (...args) => args.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
+
+        const rows = stats.rows;
+        const realtimeRows = rows.filter(r => r.sourceKind === 'realtime');
+        const offlineRows  = rows.filter(r => r.sourceKind === 'offline');
+
+        // ── 실시간: 참석여부별 집계 ──────────────────────────────────────
+        const rt = {
+            applied:  { 진로연계: 0, 진로개발: 0, 일반: 0, 특화: 0 },
+            attended: { 진로연계: 0, 진로개발: 0, 일반: 0, 특화: 0 },
+            absent:   { 진로연계: 0, 진로개발: 0, 일반: 0, 특화: 0 },
+        };
+        realtimeRows.forEach(r => {
+            const bucket = r.typeSub === '진로개발' || r.typeSub === '웰컴세션' ? '진로개발'
+                         : r.typeSub === '일반'  ? '일반'
+                         : r.typeSub === '특화'  ? '특화'
+                         : r.typeUpper === '진로개발' ? '진로연계' : null;
+            if (!bucket) return;
+            if (r.isApplied)  rt.applied[bucket]++;
+            if (r.isAttended) rt.attended[bucket]++;
+            if (r.isAbsent)   rt.absent[bucket]++;
+        });
+
+        // ── 비실시간: 집계 ────────────────────────────────────────────────
+        const off = { 취업연계: 0, 국문: 0, 영문: 0 };
+        offlineRows.forEach(r => {
+            if (r.typeSub === '연계') off.취업연계++;
+            else if (r.typeSub === '국문') off.국문++;
+            else if (r.typeSub === '영문') off.영문++;
+        });
+
+        const rtTotal = (obj) => safeAdd(obj.진로연계, obj.진로개발, obj.일반, obj.특화);
+        const offTotal = safeAdd(off.취업연계, off.국문, off.영문);
+
+        // ── 학년별 집계 ───────────────────────────────────────────────────
+        const GRADES = ['1학년','2학년','3학년','4학년','5학년 이상','대학원'];
+        const gradeNorm = (g) => {
+            if (!g || g.includes('대학원')) return '대학원';
+            const n = parseInt(g);
+            if (n >= 5) return '5학년 이상';
+            return `${n}학년`;
+        };
+        const gradeData = {};
+        GRADES.forEach(g => { gradeData[g] = { 진로연계:0, 진로개발:0, 일반:0, 특화:0, 취업연계:0, 국문:0, 영문:0 }; });
+
+        realtimeRows.filter(r => r.isAttended).forEach(r => {
+            const g = gradeNorm(r.grade);
+            if (!gradeData[g]) return;
+            if (r.typeSub === '진로개발' || r.typeSub === '웰컴세션') gradeData[g].진로개발++;
+            else if (r.typeSub === '일반') gradeData[g].일반++;
+            else if (r.typeSub === '특화') gradeData[g].특화++;
+            else if (r.typeUpper === '진로개발') gradeData[g].진로연계++;
+        });
+        offlineRows.forEach(r => {
+            const g = gradeNorm(r.grade);
+            if (!gradeData[g]) return;
+            if (r.typeSub === '연계') gradeData[g].취업연계++;
+            else if (r.typeSub === '국문') gradeData[g].국문++;
+            else if (r.typeSub === '영문') gradeData[g].영문++;
+        });
+
+        // ── 단과대별 집계 ─────────────────────────────────────────────────
+        const collegeData = {};
+        COLLEGE_ORDER.forEach(c => { collegeData[c] = { 진로연계:0, 진로개발:0, 일반:0, 특화:0, 취업연계:0, 국문:0, 영문:0 }; });
+
+        realtimeRows.filter(r => r.isAttended).forEach(r => {
+            const c = r.college || '대학원';
+            if (!collegeData[c]) return;
+            if (r.typeSub === '진로개발' || r.typeSub === '웰컴세션') collegeData[c].진로개발++;
+            else if (r.typeSub === '일반') collegeData[c].일반++;
+            else if (r.typeSub === '특화') collegeData[c].특화++;
+            else if (r.typeUpper === '진로개발') collegeData[c].진로연계++;
+        });
+        offlineRows.forEach(r => {
+            const c = r.college || '대학원';
+            if (!collegeData[c]) return;
+            if (r.typeSub === '연계') collegeData[c].취업연계++;
+            else if (r.typeSub === '국문') collegeData[c].국문++;
+            else if (r.typeSub === '영문') collegeData[c].영문++;
+        });
+
+        // ── 헤더 공통 ─────────────────────────────────────────────────────
+        const AllHeader = () => (
+            <thead>
+                <tr>
+                    <th rowSpan="3" className="excel-header-main" style={{ width: 120 }}>유형별</th>
+                    <th colSpan="2" className="excel-header-sub" style={{ background: '#1976d2', color: '#fff' }}>진로</th>
+                    <th colSpan="2" className="excel-header-sub" style={{ background: '#5c6bc0', color: '#fff' }}>취업<br/>서류면접</th>
+                    <th rowSpan="2" className="excel-header-sub" style={{ background: '#7b1fa2', color: '#fff' }}>실시간<br/>합계</th>
+                    <th colSpan="3" className="excel-header-sub" style={{ background: '#2e7d32', color: '#fff' }}>취업<br/>서면첨삭</th>
+                    <th rowSpan="2" className="excel-header-sub" style={{ background: '#558b2f', color: '#fff' }}>비실시간<br/>합계</th>
+                    <th rowSpan="2" className="excel-header-sub" style={{ background: '#e65100', color: '#fff' }}>전체<br/>합계</th>
+                </tr>
+                <tr>
+                    <th className="excel-header-sub">진로연계</th>
+                    <th className="excel-header-sub">진로개발</th>
+                    <th className="excel-header-sub">일반</th>
+                    <th className="excel-header-sub">특화</th>
+                    <th className="excel-header-sub">취업연계</th>
+                    <th className="excel-header-sub">국문</th>
+                    <th className="excel-header-sub">영문</th>
+                </tr>
+            </thead>
+        );
+
+        const AllRow = ({ label, d, isTotal }) => {
+            const rtSum  = safeAdd(d.진로연계, d.진로개발, d.일반, d.특화);
+            const offSum = safeAdd(d.취업연계, d.국문, d.영문);
+            const total  = safeAdd(rtSum, offSum);
+            const bold   = isTotal ? { fontWeight: 700, background: '#f8f9fa' } : {};
+            return (
+                <tr style={bold}>
+                    <td className="excel-header-sub">{label}</td>
+                    <td>{d.진로연계 || 0}</td>
+                    <td>{d.진로개발 || 0}</td>
+                    <td>{d.일반 || 0}</td>
+                    <td>{d.특화 || 0}</td>
+                    <td style={{ background: '#ede7f6', fontWeight: 700 }}>{rtSum}</td>
+                    <td>{d.취업연계 || 0}</td>
+                    <td>{d.국문 || 0}</td>
+                    <td>{d.영문 || 0}</td>
+                    <td style={{ background: '#e8f5e9', fontWeight: 700 }}>{offSum}</td>
+                    <td className="excel-total-highlight" style={{ color: '#e65100', fontWeight: 700 }}>{total}</td>
+                </tr>
+            );
+        };
+
+        return (
+            <div className="excel-dashboard-grid" style={{ gridTemplateColumns: '1fr' }}>
+                {/* 1. 참여현황 */}
+                <div className="excel-table-container" style={{ gridColumn: '1 / -1' }}>
+                    <div className="excel-summary-header">1. 참여현황</div>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="excel-style-table">
+                            <AllHeader />
+                            <tbody>
+                                <tr>
+                                    <td className="excel-header-sub">신청</td>
+                                    <td>{rt.applied.진로연계}</td><td>{rt.applied.진로개발}</td>
+                                    <td>{rt.applied.일반}</td><td>{rt.applied.특화}</td>
+                                    <td style={{ background: '#ede7f6', fontWeight: 700 }}>{rtTotal(rt.applied)}</td>
+                                    <td>{off.취업연계}</td><td>{off.국문}</td><td>{off.영문}</td>
+                                    <td style={{ background: '#e8f5e9', fontWeight: 700 }}>{offTotal}</td>
+                                    <td className="excel-total-highlight" style={{ color: '#e65100', fontWeight: 700 }}>{safeAdd(rtTotal(rt.applied), offTotal)}</td>
+                                </tr>
+                                <tr>
+                                    <td className="excel-header-sub">참석</td>
+                                    <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.진로연계}</td>
+                                    <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.진로개발}</td>
+                                    <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.일반}</td>
+                                    <td style={{ color: '#c62828', fontWeight: 700 }}>{rt.attended.특화}</td>
+                                    <td style={{ background: '#ede7f6', fontWeight: 700, color: '#c62828' }}>{rtTotal(rt.attended)}</td>
+                                    <td style={{ color: '#c62828', fontWeight: 700 }}>{off.취업연계}</td>
+                                    <td style={{ color: '#c62828', fontWeight: 700 }}>{off.국문}</td>
+                                    <td style={{ color: '#c62828', fontWeight: 700 }}>{off.영문}</td>
+                                    <td style={{ background: '#e8f5e9', fontWeight: 700, color: '#c62828' }}>{offTotal}</td>
+                                    <td className="excel-total-highlight" style={{ color: '#c62828', fontWeight: 700 }}>{safeAdd(rtTotal(rt.attended), offTotal)}</td>
+                                </tr>
+                                <tr>
+                                    <td className="excel-header-sub">불참</td>
+                                    <td>{rt.absent.진로연계}</td><td>{rt.absent.진로개발}</td>
+                                    <td>{rt.absent.일반}</td><td>{rt.absent.특화}</td>
+                                    <td style={{ background: '#ede7f6', fontWeight: 700 }}>{rtTotal(rt.absent)}</td>
+                                    <td>0</td><td>0</td><td>0</td>
+                                    <td style={{ background: '#e8f5e9', fontWeight: 700 }}>0</td>
+                                    <td className="excel-total-highlight" style={{ color: '#e65100', fontWeight: 700 }}>{rtTotal(rt.absent)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* 2. 학년별 */}
+                <div className="excel-table-container" style={{ gridColumn: '1 / -1' }}>
+                    <div className="excel-summary-header">2. 학년별 (참석자 기준)</div>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="excel-style-table">
+                            <AllHeader />
+                            <tbody>
+                                {GRADES.map(grade => (
+                                    <AllRow key={grade} label={grade} d={gradeData[grade] || {}} />
+                                ))}
+                                <AllRow label="합계" isTotal d={{
+                                    진로연계: GRADES.reduce((s,g) => s + (gradeData[g]?.진로연계||0), 0),
+                                    진로개발: GRADES.reduce((s,g) => s + (gradeData[g]?.진로개발||0), 0),
+                                    일반:     GRADES.reduce((s,g) => s + (gradeData[g]?.일반||0), 0),
+                                    특화:     GRADES.reduce((s,g) => s + (gradeData[g]?.특화||0), 0),
+                                    취업연계: GRADES.reduce((s,g) => s + (gradeData[g]?.취업연계||0), 0),
+                                    국문:     GRADES.reduce((s,g) => s + (gradeData[g]?.국문||0), 0),
+                                    영문:     GRADES.reduce((s,g) => s + (gradeData[g]?.영문||0), 0),
+                                }} />
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* 3. 단과대별 */}
+                <div className="excel-table-container" style={{ gridColumn: '1 / -1' }}>
+                    <div className="excel-summary-header">3. 단과대별 (참석자 기준이며, 대학원의 단과대도 포함하고 있음)</div>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="excel-style-table">
+                            <AllHeader />
+                            <tbody>
+                                {COLLEGE_ORDER.map(college => (
+                                    <AllRow
+                                        key={college}
+                                        label={college === '대학원' ? '기타' : college}
+                                        d={collegeData[college] || {}}
+                                    />
+                                ))}
+                                <AllRow label="합계" isTotal d={{
+                                    진로연계: COLLEGE_ORDER.reduce((s,c) => s + (collegeData[c]?.진로연계||0), 0),
+                                    진로개발: COLLEGE_ORDER.reduce((s,c) => s + (collegeData[c]?.진로개발||0), 0),
+                                    일반:     COLLEGE_ORDER.reduce((s,c) => s + (collegeData[c]?.일반||0), 0),
+                                    특화:     COLLEGE_ORDER.reduce((s,c) => s + (collegeData[c]?.특화||0), 0),
+                                    취업연계: COLLEGE_ORDER.reduce((s,c) => s + (collegeData[c]?.취업연계||0), 0),
+                                    국문:     COLLEGE_ORDER.reduce((s,c) => s + (collegeData[c]?.국문||0), 0),
+                                    영문:     COLLEGE_ORDER.reduce((s,c) => s + (collegeData[c]?.영문||0), 0),
+                                }} />
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* 4. 진로취업 컨설팅 단과대별 참여순위 */}
+                <div className="excel-table-container" style={{ gridColumn: '1 / -1' }}>
+                    <div className="excel-summary-header">진로취업 컨설팅 단과대별('참석' 기준이며, 대학원의 단과대도 포함하고 있음)</div>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="excel-style-table">
+                            <thead>
+                                <tr>
+                                    <th className="excel-header-main" style={{ width: 200 }}>단과대학 참여순위</th>
+                                    <th className="excel-header-sub" style={{ width: 80 }}>(건)</th>
+                                    <th className="excel-header-sub" style={{ width: 80 }}>비율</th>
+                                    <th className="excel-header-sub" style={{ width: 200 }}>특이사항</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(() => {
+                                    // 단과대별 전체 참여 건수 계산 (실시간 참석 + 비실시간)
+                                    const collegeTotal = {};
+                                    COLLEGE_ORDER.forEach(c => { collegeTotal[c] = 0; });
+                                    realtimeRows.filter(r => r.isAttended).forEach(r => {
+                                        const c = r.college || '대학원';
+                                        if (collegeTotal[c] !== undefined) collegeTotal[c]++;
+                                    });
+                                    offlineRows.forEach(r => {
+                                        const c = r.college || '대학원';
+                                        if (collegeTotal[c] !== undefined) collegeTotal[c]++;
+                                    });
+
+                                    const grandTotal = Object.values(collegeTotal).reduce((s, v) => s + v, 0);
+
+                                    // 건수 내림차순 정렬
+                                    const sorted = [...COLLEGE_ORDER]
+                                        .map(c => ({ college: c, count: collegeTotal[c] || 0 }))
+                                        .sort((a, b) => b.count - a.count);
+
+                                    return (
+                                        <>
+                                            {sorted.map(({ college, count }) => (
+                                                <tr key={college}>
+                                                    <td className="excel-header-sub">{college === '대학원' ? '기타' : college}</td>
+                                                    <td>{count}</td>
+                                                    <td>{grandTotal > 0 ? (count / grandTotal * 100).toFixed(1) + '%' : '0%'}</td>
+                                                    <td></td>
+                                                </tr>
+                                            ))}
+                                            <tr style={{ background: '#f8f9fa', fontWeight: 700 }}>
+                                                <td className="excel-header-sub">합계</td>
+                                                <td style={{ background: '#fff59d', color: '#c62828' }}>{grandTotal}</td>
+                                                <td>{grandTotal > 0 ? '100%' : ''}</td>
+                                                <td></td>
+                                            </tr>
+                                        </>
+                                    );
+                                })()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
     const renderExcelDashboard = (stats) => {
         if (!stats || !stats.realtime) {
-            return <div>데이터가 없습니다</div>;
+            return <div>\ub370\uc774\ud130\uac00 \uc5c6\uc2b5\ub2c8\ub2e4</div>;
         }
+
         
         const rt = stats.realtime;
         
