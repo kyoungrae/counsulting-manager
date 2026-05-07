@@ -502,6 +502,17 @@ const SatisfactionMatch = () => {
         return isWrittenCorrection ? formatted.split(' ')[0] : formatted;
     };
 
+    const toSortableDateValue = (dateTimeLike) => {
+        const formatted = formatDateTime(dateTimeLike || '');
+        if (!formatted) return Number.POSITIVE_INFINITY;
+        const [datePart, timePart = '00:00'] = formatted.split(' ');
+        const [yyyy, mm, dd] = datePart.split('.').map(Number);
+        const [hh, mi] = timePart.split(':').map(Number);
+        const dt = new Date(yyyy, (mm || 1) - 1, dd || 1, hh || 0, mi || 0);
+        const t = dt.getTime();
+        return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+    };
+
     const compareFiles = async (refFile, studFile) => {
         try {
             const [refResult, studResult] = await Promise.all([
@@ -612,6 +623,17 @@ const SatisfactionMatch = () => {
                 const studentId = personKey.split('::')[0];
                 const refRecords = refMapByPersonKey.get(personKey) || refMapByStudentId.get(studentId) || [];
                 const usedRefIds = new Set();
+                const orderedPairMap = new Map();
+
+                // 동일 인물 다건 비교: 날짜 오름차순으로 1:1 대응 (요청사항)
+                if (refRecords.length > 1 && studResponses.length > 1) {
+                    const sortedRefs = [...refRecords].sort((a, b) => toSortableDateValue(a.dateTime) - toSortableDateValue(b.dateTime));
+                    const sortedStuds = [...studResponses].sort((a, b) => toSortableDateValue(a.dateTime) - toSortableDateValue(b.dateTime));
+                    const pairCount = Math.min(sortedRefs.length, sortedStuds.length);
+                    for (let i = 0; i < pairCount; i++) {
+                        orderedPairMap.set(sortedStuds[i], sortedRefs[i]);
+                    }
+                }
 
                 // 같은 일정(날짜+시간)에 2회 이상 응답 여부 감지
                 const dateTimeCounts = new Map();
@@ -622,12 +644,14 @@ const SatisfactionMatch = () => {
 
                 // 각 응답에 대해 가장 일치율이 높은 기준데이터 건과 매칭
                 studResponses.forEach(studResp => {
-                    let bestMatch = null;
-                    let bestMatchScore = -1;
+                    let bestMatch = orderedPairMap.get(studResp) || null;
+                    let bestMatchScore = bestMatch ? Number.MAX_SAFE_INTEGER : -1;
                     const candidateRefRecords = refRecords.filter(refRecord => !usedRefIds.has(refRecord.id));
                     const recordsToCompare = candidateRefRecords.length > 0 ? candidateRefRecords : refRecords;
 
                     recordsToCompare.forEach(refRecord => {
+                        // 날짜순 강제 페어가 있으면 그 기준 레코드만 사용
+                        if (bestMatch && refRecord.id !== bestMatch.id) return;
                         let score = 0;
 
                         // 이름 비교 (기준 vs 응답)
