@@ -416,11 +416,12 @@ const SatisfactionMatch = () => {
     const getWrittenSubtype = (type) => {
         if (!type) return '';
         const t = String(type).replace(/\s+/g, '');
+        const compact = t.replace(/[()[\]{}（）［］【】]/g, '');
         // 요청사항: "국문 이력서 또는 자기소개서" == "(국문)서면첨삭"
-        if (/국문.*(이력서|자기소개서)|국문서면첨삭|서면첨삭국문/.test(t)) return '국문';
+        if (/국문.*(이력서|자기소개서)|국문서면첨삭|서면첨삭국문/.test(compact)) return '국문';
         // 요청사항: "영문 이력서 또는 자기소개서" == "(영문)서면첨삭"
-        if (/영문.*(이력서|자기소개서)|영문서면첨삭|서면첨삭영문/.test(t)) return '영문';
-        if (/서면첨삭/.test(t)) return '서면첨삭';
+        if (/영문.*(이력서|자기소개서)|영문서면첨삭|서면첨삭영문/.test(compact)) return '영문';
+        if (/서면첨삭/.test(compact)) return '서면첨삭';
         return '';
     };
 
@@ -625,14 +626,20 @@ const SatisfactionMatch = () => {
                 const usedRefIds = new Set();
                 const orderedPairMap = new Map();
 
-                // 동일 인물 다건 비교: 날짜 오름차순으로 1:1 대응 (요청사항)
+                // 동일 인물 다건 비교: 상담분류 우선 + 날짜 오름차순 1:1 대응
                 if (refRecords.length > 1 && studResponses.length > 1) {
                     const sortedRefs = [...refRecords].sort((a, b) => toSortableDateValue(a.dateTime) - toSortableDateValue(b.dateTime));
                     const sortedStuds = [...studResponses].sort((a, b) => toSortableDateValue(a.dateTime) - toSortableDateValue(b.dateTime));
-                    const pairCount = Math.min(sortedRefs.length, sortedStuds.length);
-                    for (let i = 0; i < pairCount; i++) {
-                        orderedPairMap.set(sortedStuds[i], sortedRefs[i]);
-                    }
+                    const pairedRefIds = new Set();
+                    sortedStuds.forEach((stud) => {
+                        const availableRefs = sortedRefs.filter((ref) => !pairedRefIds.has(ref.id));
+                        if (availableRefs.length === 0) return;
+                        const typedRefs = availableRefs.filter((ref) => checkTypeMatch(ref.type, stud.type));
+                        const pool = typedRefs.length > 0 ? typedRefs : availableRefs;
+                        const chosen = pool[0];
+                        orderedPairMap.set(stud, chosen);
+                        pairedRefIds.add(chosen.id);
+                    });
                 }
 
                 // 같은 일정(날짜+시간)에 2회 이상 응답 여부 감지
@@ -648,8 +655,11 @@ const SatisfactionMatch = () => {
                     let bestMatchScore = bestMatch ? Number.MAX_SAFE_INTEGER : -1;
                     const candidateRefRecords = refRecords.filter(refRecord => !usedRefIds.has(refRecord.id));
                     const recordsToCompare = candidateRefRecords.length > 0 ? candidateRefRecords : refRecords;
+                    // 1:N(응답 1건, 기준 다건 포함)에서 상담분류 일치 후보가 있으면 그 후보군만 비교
+                    const typeMatchedRecords = recordsToCompare.filter(refRecord => checkTypeMatch(refRecord.type, studResp.type));
+                    const prioritizedRecords = typeMatchedRecords.length > 0 ? typeMatchedRecords : recordsToCompare;
 
-                    recordsToCompare.forEach(refRecord => {
+                    prioritizedRecords.forEach(refRecord => {
                         // 날짜순 강제 페어가 있으면 그 기준 레코드만 사용
                         if (bestMatch && refRecord.id !== bestMatch.id) return;
                         let score = 0;
