@@ -4,6 +4,63 @@ import * as XLSX from 'xlsx';
 import * as XLSXStyle from 'xlsx-js-style';
 import './SatisfactionMatch.css';
 
+/** 기준데이터 엑셀 헤더 → 내부 논리 필드 매핑용 별칭 (순서: 정확 일치 우선, includes 보조) */
+const REFERENCE_FIELD_ALIASES = {
+    consultingDate: ['컨설팅일자', '컨설팅 일자', '상담일자', '컨설팅 일시'],
+    studentId: ['학번'],
+    name: ['이름', '성명'],
+    department: ['학과', '전공'],
+    consultingType: ['상담분류', '상담 분류', '상담유형'],
+    counselor: ['상담사', '컨설턴트'],
+};
+
+const REFERENCE_FIELD_LABELS = {
+    consultingDate: '컨설팅일자',
+    studentId: '학번',
+    name: '이름',
+    department: '학과',
+    consultingType: '상담분류',
+    counselor: '상담사',
+};
+
+const normalizeHeaderLabel = (h) => String(h ?? '').replace(/\s+/g, ' ').trim();
+
+const findColumnByAliases = (headerRow, aliases) => {
+    if (!headerRow?.length || !aliases?.length) return -1;
+    const normalizedHeaders = headerRow.map((cell) => normalizeHeaderLabel(cell));
+    for (const alias of aliases) {
+        const a = normalizeHeaderLabel(alias);
+        if (!a) continue;
+        const exactIdx = normalizedHeaders.findIndex((nh) => nh === a);
+        if (exactIdx >= 0) return exactIdx;
+    }
+    for (const alias of aliases) {
+        const a = normalizeHeaderLabel(alias);
+        if (!a) continue;
+        const idx = normalizedHeaders.findIndex((nh) => nh.includes(a));
+        if (idx >= 0) return idx;
+    }
+    return -1;
+};
+
+const resolveReferenceColumnIndices = (headerRow) => ({
+    consultingDate: findColumnByAliases(headerRow, REFERENCE_FIELD_ALIASES.consultingDate),
+    studentId: findColumnByAliases(headerRow, REFERENCE_FIELD_ALIASES.studentId),
+    name: findColumnByAliases(headerRow, REFERENCE_FIELD_ALIASES.name),
+    department: findColumnByAliases(headerRow, REFERENCE_FIELD_ALIASES.department),
+    consultingType: findColumnByAliases(headerRow, REFERENCE_FIELD_ALIASES.consultingType),
+    counselor: findColumnByAliases(headerRow, REFERENCE_FIELD_ALIASES.counselor),
+});
+
+const REFERENCE_REQUIRED_FIELDS = [
+    'consultingDate',
+    'studentId',
+    'name',
+    'department',
+    'consultingType',
+    'counselor',
+];
+
 const SatisfactionMatch = () => {
     const [referenceFile, setReferenceFile] = useState(null);
     const [studentFile, setStudentFile] = useState(null);
@@ -136,29 +193,39 @@ const SatisfactionMatch = () => {
         return results;
     };
 
-    // 기준데이터 파싱: C=일자, D=학번, E=이름, G=학과, J=상담분류, K=상담사
+    // 기준데이터 파싱: 헤더 이름(별칭) → 논리 키(열 순서 무관)
     const parseReferenceData = (jsonData) => {
-        if (!jsonData || jsonData.length < 2) return [];
+        if (!jsonData || jsonData.length < 2) return { rows: [], missingFields: [] };
 
-        // 열 인덱스: A=0, B=1, C=2, D=3, E=4, F=5, G=6, ..., J=9, K=10
-        const colC = 2; // C열: 컨설팅일자
-        const colD = 3; // D열: 학번
-        const colE = 4; // E열: 이름
-        const colG = 6; // G열: 학과
-        const colJ = 9; // J열: 상담분류
-        const colK = 10; // K열: 상담사
+        const headerRow = jsonData[0];
+        const idx = resolveReferenceColumnIndices(headerRow);
+        const missingFields = REFERENCE_REQUIRED_FIELDS.filter((key) => idx[key] < 0).map(
+            (key) => REFERENCE_FIELD_LABELS[key]
+        );
+        if (missingFields.length > 0) {
+            return { rows: [], missingFields };
+        }
+
+        const {
+            consultingDate: colDate,
+            studentId: colSid,
+            name: colName,
+            department: colDept,
+            consultingType: colType,
+            counselor: colCounselor,
+        } = idx;
 
         const results = [];
         for (let i = 1; i < jsonData.length; i++) {
             const row = jsonData[i];
             if (!row || row.length === 0) continue;
 
-            const name = String(row[colE] || '').trim();
-            const studentId = String(row[colD] || '').trim();
-            const department = String(row[colG] || '').trim();
-            const type = String(row[colJ] || '').trim();
-            const dateTime = String(row[colC] || '').trim();
-            const counselor = String(row[colK] || '').trim();
+            const name = String(row[colName] || '').trim();
+            const studentId = String(row[colSid] || '').trim();
+            const department = String(row[colDept] || '').trim();
+            const type = String(row[colType] || '').trim();
+            const dateTime = String(row[colDate] || '').trim();
+            const counselor = String(row[colCounselor] || '').trim();
 
             if (name || studentId) {
                 results.push({
@@ -173,7 +240,7 @@ const SatisfactionMatch = () => {
                 });
             }
         }
-        return results;
+        return { rows: results, missingFields: [] };
     };
 
     // 날짜 형식을 YYYY.MM.DD HH:MM 형식으로 통일
@@ -386,7 +453,7 @@ const SatisfactionMatch = () => {
         return false;
     };
 
-    // 날짜+시간 비교 (기준데이터 C열 vs 응답데이터 F열+G열)
+    // 날짜+시간 비교 (기준 컨설팅일자 vs 응답 일정+시간)
     const checkDateTimeMatch = (refDateTime, respSchedule, respTime, respType) => {
         if (!refDateTime) return false;
         if (!respSchedule) return false;
@@ -423,7 +490,15 @@ const SatisfactionMatch = () => {
                 readExcel(studFile)
             ]);
 
-            const refDataRaw = parseReferenceData(refResult.data);
+            const refParsed = parseReferenceData(refResult.data);
+            if (refParsed.missingFields.length > 0) {
+                alert(
+                    '기준 데이터에서 다음 열(헤더)을 찾을 수 없습니다. 파일 형식을 확인해 주세요.\n\n• ' +
+                        refParsed.missingFields.join('\n• ')
+                );
+                return;
+            }
+            const refDataRaw = refParsed.rows;
             let studDataRaw = parseResponseData(studResult.data, studResult.sheet);
 
             if (refDataRaw.length === 0) {
@@ -533,7 +608,7 @@ const SatisfactionMatch = () => {
                     refRecords.forEach(refRecord => {
                         let score = 0;
 
-                        // 이름 비교 (기준 E열 vs 응답 D열)
+                        // 이름 비교 (기준 vs 응답)
                         const refNameNorm = normalizeName(refRecord.name);
                         const studNameNorm = normalizeName(studResp.name);
 
@@ -543,24 +618,24 @@ const SatisfactionMatch = () => {
                             nameMatch = true;
                         }
 
-                        // 상담분류 비교 (기준 J열 vs 응답 E열)
+                        // 상담분류 비교
                         if (checkTypeMatch(refRecord.type, studResp.type)) {
                             score += 3;
                         }
 
-                        // 상담일자 비교 (기준 C열 vs 응답 F열+G열)
+                        // 상담일자 비교 (기준 컨설팅일자 vs 응답 일정+시간)
                         if (checkDateTimeMatch(refRecord.dateTime, studResp.schedule, studResp.time, studResp.type)) {
                             score += 3;
                         }
 
-                        // 상담사 비교 (기준 K열 vs 응답 H열)
+                        // 상담사 비교
                         const refCounselorNorm = normalizeCounselorName(refRecord.counselor);
                         const studCounselorNorm = normalizeCounselorName(studResp.counselor);
                         if (refCounselorNorm && studCounselorNorm && refCounselorNorm === studCounselorNorm) {
                             score += 2;
                         }
 
-                        // 학과 비교 (기준 G열 vs 응답 B열)
+                        // 학과 비교
                         const deptResult = checkDepartmentMatch(refRecord.department, studResp.department);
                         if (deptResult.match) score += 1;
 
@@ -586,7 +661,14 @@ const SatisfactionMatch = () => {
                         normalizeCounselorName(bestMatch.counselor) === normalizeCounselorName(studResp.counselor);
                     const deptResult = bestMatch ? checkDepartmentMatch(bestMatch.department, studResp.department) : { match: false, similar: false };
 
-                    let isMatch = finalNameMatch && typeMatch && dateMatch && counselorMatch && deptResult.match;
+                    const refSid = normalizeStudentId((bestMatch && bestMatch.studentId) || '');
+                    const studSid = normalizeStudentId(studResp.studentId || '');
+                    let studentIdMatch = true;
+                    if (!studSid && !refSid) studentIdMatch = true;
+                    else if (studSid && refSid) studentIdMatch = studSid === refSid;
+                    else studentIdMatch = false;
+
+                    let isMatch = finalNameMatch && typeMatch && dateMatch && counselorMatch && deptResult.match && studentIdMatch;
                     let status = isMatch ? 'MATCH' : (bestMatch ? 'PARTIAL_MISMATCH' : 'NOT_IN_REF');
 
                     // 같은 일정(날짜+시간)에 2회 이상 응답 → 중복응답 표시
@@ -608,7 +690,7 @@ const SatisfactionMatch = () => {
                         status: status,
                         matchDetails: {
                             name: finalNameMatch,
-                            studentId: true,
+                            studentId: studentIdMatch,
                             type: typeMatch,
                             date: dateMatch,
                             counselor: counselorMatch,
@@ -617,6 +699,7 @@ const SatisfactionMatch = () => {
                         },
                         mismatchItems: [
                             !finalNameMatch ? '이름' : null,
+                            !studentIdMatch ? '학번' : null,
                             !deptResult.match ? '학과' : null,
                             !typeMatch ? '상담분류' : null,
                             !dateMatch ? '상담일자' : null,
@@ -834,6 +917,7 @@ const SatisfactionMatch = () => {
                 const md = row.matchDetails || {};
                 const redCols = new Set();
                 if (!md.name) { redCols.add(colIdx('이름 (실제)')); redCols.add(colIdx('이름 (응답)')); }
+                if (!md.studentId) { redCols.add(colIdx('학번')); }
                 if (!md.department) { redCols.add(colIdx('학과 (실제)')); redCols.add(colIdx('학과 (응답)')); }
                 if (!md.type) { redCols.add(colIdx('상담분류 (실제)')); redCols.add(colIdx('상담분류 (응답)')); }
                 if (!md.date) { redCols.add(colIdx('상담일자 (실제)')); redCols.add(colIdx('상담일자 (응답)')); }
@@ -916,7 +1000,7 @@ const SatisfactionMatch = () => {
     };
 
     const getStatusLabel = (status) => {
-        const map = { MATCH: '일치', PARTIAL_MISMATCH: '일부 불일치', DUPLICATE: '중복의심', DUPLICATE_RESPONSE: '중복응답', NOT_IN_REF: '기준데이터에없음' };
+        const map = { MATCH: '일치', PARTIAL_MISMATCH: '일부 불일치', DUPLICATE: '중복의심', DUPLICATE_RESPONSE: '중복응답', NOT_IN_REF: '기준데이터 엑셀에 없음' };
         return map[status] || status;
     };
 
@@ -1004,7 +1088,7 @@ const SatisfactionMatch = () => {
                                 </label>
                                 <label className="filter-checkbox">
                                     <input type="radio" name="statusFilter" checked={statusFilter === 'not_in_ref'} onChange={() => handleFilterChange('not_in_ref')} />
-                                    기준데이터에없음
+                                    기준데이터 엑셀에 없음
                                 </label>
                             </div>
                             <button className="reset-btn" onClick={handleReset}>
@@ -1101,12 +1185,21 @@ const SatisfactionMatch = () => {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td>{row.student.studentId}</td>
+                                            <td className={!row.matchDetails.studentId ? 'mismatch-cell' : ''}>
+                                                <div className="data-content">
+                                                    <span className="student-data">{row.student.studentId || '(응답 없음)'}</span>
+                                                    {!row.matchDetails.studentId && (
+                                                        <div className="reference-data">
+                                                            (실제: {row.reference?.studentId || '데이터 없음'})
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className={!row.matchDetails.department ? 'mismatch-cell' : ''}>
                                                 <div className="data-content">
                                                     <span className="student-data">{row.student.department || '(응답 없음)'}</span>
-                                                    {!row.matchDetails.department && row.reference?.department && (
-                                                        <div className="reference-data">(실제: {row.reference.department})</div>
+                                                    {!row.matchDetails.department && (
+                                                        <div className="reference-data">(실제: {row.reference?.department || '데이터 없음'})</div>
                                                     )}
                                                     {row.matchDetails.department && row.matchDetails.departmentSimilar && (
                                                         <div className="reference-data">(판정: 일치(유사))</div>
