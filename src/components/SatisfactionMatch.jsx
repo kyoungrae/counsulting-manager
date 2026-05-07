@@ -273,13 +273,13 @@ const SatisfactionMatch = () => {
         }
 
         // M/D/YY or M/D/YYYY H:MM:SS AM/PM 형식 파싱
-        const mdyMatch = str.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?/i);
+        const mdyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|오전|오후)?)?/i);
         // 주의: YYYY.MM.DD 형식이 M/D/YY와 혼동될 수 있음. 
         // 연도가 4자리이고 첫번째 그룹이 4자리이면 YYYY.MM.DD로 처리해야 함.
 
         // YYYY.MM.DD 또는 YYYY-MM-DD 또는 YYYY/MM/DD 형식 (Dot, Dash, Slash)
         // 뒤에 시간 (HH:MM:SS AM/PM)이 올 수 있음
-        const ymdMatch = str.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?/i);
+        const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|오전|오후)?)?/i);
 
         if (ymdMatch) {
             const year = ymdMatch[1];
@@ -295,8 +295,12 @@ const SatisfactionMatch = () => {
                 const ampm = ymdMatch[6];
 
                 if (ampm) {
-                    if (ampm.toUpperCase() === 'PM' && hours !== 12) hours += 12;
-                    if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+                    const marker = ampm.toUpperCase();
+                    // "13:30 PM" 같은 비정상 표기(24시간+AM/PM)는 24시간 값으로 간주하여 추가 보정하지 않음
+                    if (hours <= 12) {
+                        if ((marker === 'PM' || ampm === '오후') && hours !== 12) hours += 12;
+                        if ((marker === 'AM' || ampm === '오전') && hours === 12) hours = 0;
+                    }
                 }
             }
 
@@ -320,8 +324,12 @@ const SatisfactionMatch = () => {
                 const ampm = mdyMatch[6];
 
                 if (ampm) {
-                    if (ampm.toUpperCase() === 'PM' && hours !== 12) hours += 12;
-                    if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+                    const marker = ampm.toUpperCase();
+                    // "13:30 PM" 같은 비정상 표기(24시간+AM/PM)는 24시간 값으로 간주하여 추가 보정하지 않음
+                    if (hours <= 12) {
+                        if ((marker === 'PM' || ampm === '오후') && hours !== 12) hours += 12;
+                        if ((marker === 'AM' || ampm === '오전') && hours === 12) hours = 0;
+                    }
                 }
             }
 
@@ -405,11 +413,20 @@ const SatisfactionMatch = () => {
             .trim();
     };
 
+    const getWrittenSubtype = (type) => {
+        if (!type) return '';
+        const t = String(type).replace(/\s+/g, '');
+        // 요청사항: "국문 이력서 또는 자기소개서" == "(국문)서면첨삭"
+        if (/국문.*(이력서|자기소개서)|국문서면첨삭|서면첨삭국문/.test(t)) return '국문';
+        // 요청사항: "영문 이력서 또는 자기소개서" == "(영문)서면첨삭"
+        if (/영문.*(이력서|자기소개서)|영문서면첨삭|서면첨삭영문/.test(t)) return '영문';
+        if (/서면첨삭/.test(t)) return '서면첨삭';
+        return '';
+    };
+
     // 서면첨삭 관련 유형 여부 (일정 대조 생략 대상)
     const isWrittenCorrectionType = (type) => {
-        if (!type) return false;
-        const t = String(type).trim();
-        return /서면첨삭/.test(t) || /(국문|영문)\s*서면첨삭|서면첨삭\s*(국문|영문)/i.test(t);
+        return !!getWrittenSubtype(type);
     };
 
     // 상담분류 규칙 기반 비교 (하드코딩 없이 문자열 파싱)
@@ -418,12 +435,14 @@ const SatisfactionMatch = () => {
     const checkTypeMatch = (type1, type2) => {
         if (!type1 || !type2) return false;
 
-        // 서면첨삭 + 국문/영문: 위치와 상관없이 동일 유형으로 인식
-        if (/서면첨삭/.test(type1) && /서면첨삭/.test(type2)) {
-            const has1 = /국문|영문/.test(type1);
-            const has2 = /국문|영문/.test(type2);
-            if (has1 && has2) return true;
-            if (!has1 && !has2) return true; // 둘 다 "서면첨삭"만 있는 경우
+        // 서면첨삭 계열 동의어 정규화 후 비교
+        const written1 = getWrittenSubtype(type1);
+        const written2 = getWrittenSubtype(type2);
+        if (written1 && written2) {
+            if (written1 === written2) return true;
+            // 둘 다 서면첨삭이나 세부(국문/영문) 정보가 없는 경우는 동일로 간주
+            if (written1 === '서면첨삭' || written2 === '서면첨삭') return true;
+            return false;
         }
 
         const parseType = (s) => {
@@ -592,6 +611,7 @@ const SatisfactionMatch = () => {
             studMapByPersonKey.forEach((studResponses, personKey) => {
                 const studentId = personKey.split('::')[0];
                 const refRecords = refMapByPersonKey.get(personKey) || refMapByStudentId.get(studentId) || [];
+                const usedRefIds = new Set();
 
                 // 같은 일정(날짜+시간)에 2회 이상 응답 여부 감지
                 const dateTimeCounts = new Map();
@@ -604,8 +624,10 @@ const SatisfactionMatch = () => {
                 studResponses.forEach(studResp => {
                     let bestMatch = null;
                     let bestMatchScore = -1;
+                    const candidateRefRecords = refRecords.filter(refRecord => !usedRefIds.has(refRecord.id));
+                    const recordsToCompare = candidateRefRecords.length > 0 ? candidateRefRecords : refRecords;
 
-                    refRecords.forEach(refRecord => {
+                    recordsToCompare.forEach(refRecord => {
                         let score = 0;
 
                         // 이름 비교 (기준 vs 응답)
@@ -644,6 +666,9 @@ const SatisfactionMatch = () => {
                             bestMatch = refRecord;
                         }
                     });
+                    if (bestMatch) {
+                        usedRefIds.add(bestMatch.id);
+                    }
 
                     // 일치 여부 판단 (bestMatch 재검증)
                     // 위에서 루프 돌 때 이미 score 계산을 위해 checkNameMatch 등을 수행했지만, 
