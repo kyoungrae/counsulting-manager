@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, GraduationCap, Users, FileText, BarChart2, AlertCircle, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { AUTH_ENABLED } from '../routes/ProtectedRoute';
 import './Sidebar.css';
 
 const Sidebar = ({ activeMenu, onMenuClick }) => {
@@ -49,17 +50,19 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
                     </li>
                 ))}
             </ul>
-            <div className="sidebar-footer">
-                <button
-                    type="button"
-                    className="sidebar-logout"
-                    onClick={() => { logout(); navigate('/login'); }}
-                    title="로그아웃"
-                >
-                    <LogOut size={20} />
-                    {!isCollapsed && <span>로그아웃</span>}
-                </button>
-            </div>
+            {AUTH_ENABLED && (
+                <div className="sidebar-footer">
+                    <button
+                        type="button"
+                        className="sidebar-logout"
+                        onClick={() => { logout(); navigate('/login'); }}
+                        title="로그아웃"
+                    >
+                        <LogOut size={20} />
+                        {!isCollapsed && <span>로그아웃</span>}
+                    </button>
+                </div>
+            )}
         </nav>
     );
 };

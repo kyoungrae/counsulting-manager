@@ -1,8 +1,16 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
+/** 나중에 로그인 복구 시 true 로 변경 */
+export const AUTH_ENABLED = false
+
 export function ProtectedRoute({ children }) {
   const { currentUser, userProfile } = useAuth()
+
+  // 로그인 없이 앱 진입 (로그인 페이지/코드는 유지)
+  if (!AUTH_ENABLED) {
+    return children
+  }
 
   if (!currentUser) {
     return <Navigate to="/login" replace />
