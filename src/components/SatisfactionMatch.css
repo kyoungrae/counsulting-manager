@@ -384,7 +384,7 @@
 
 .excel-preview-table.excel-preview-exact {
     table-layout: fixed;
-    font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+    font-family: var(--font-sans);
     font-size: 11px;
 }
 

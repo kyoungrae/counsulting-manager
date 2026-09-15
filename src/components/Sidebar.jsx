@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, GraduationCap, Users, FileText, BarChart2, AlertCircle, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AUTH_ENABLED } from '../routes/ProtectedRoute';
+import ewhaLogo from '../assets/symbol-mark.png';
 import './Sidebar.css';
 
 const Sidebar = ({ activeMenu, onMenuClick }) => {
@@ -15,7 +16,6 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
         { id: 'interview', label: '서류면접', icon: <Users size={20} /> },
         { id: 'correction', label: '서면첨삭', icon: <FileText size={20} /> },
         { id: 'stats', label: '통합통계', icon: <BarChart2 size={20} /> },
-        { id: 'pre-survey', label: '사전 설문', icon: <FileText size={20} /> },
         { id: 'satisfaction-match', label: '만족도 일치여부', icon: <FileText size={20} /> },
         { id: 'data-extraction', label: '결과 보고서용 데이터 추출', icon: <BarChart2 size={20} /> },
         // { id: 'result-report-builder', label: '결과 보고서 작성', icon: <FileText size={20} /> },
@@ -29,8 +29,11 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
     return (
         <nav className={`sidebar ${isCollapsed ? 'collapsed' : ''} `}>
             <div className="sidebar-header">
-                <div className="sidebar-logo">
-                    {isCollapsed ? 'E' : 'EWHA'}
+                <div className="sidebar-brand">
+                    <div className="sidebar-logo-box">
+                        <img src={ewhaLogo} alt="이화 로고" className="sidebar-logo-image" />
+                    </div>
+                    {!isCollapsed && <span className="sidebar-brand-title">컨설팅 현황</span>}
                 </div>
                 <button className="toggle-btn" onClick={toggleSidebar}>
                     {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}

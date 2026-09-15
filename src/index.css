@@ -8,8 +8,8 @@
   --bg-light: #F9F9F9;
   --border-color: #E0E0E0;
 
-  --font-sans: 'Noto Sans KR', sans-serif;
-  --font-serif: 'Noto Serif KR', serif;
+  --font-sans: 'Nanum Gothic', sans-serif;
+  --font-serif: 'Nanum Gothic', sans-serif;
 }
 
 * {
@@ -75,6 +75,12 @@ a {
 }
 
 button {
+  font-family: var(--font-sans);
+}
+
+input,
+select,
+textarea {
   font-family: var(--font-sans);
 }
 
