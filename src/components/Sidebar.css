@@ -13,16 +13,17 @@
     transition: width 0.3s ease;
     /* Slide transition */
     flex-shrink: 0;
+    z-index: 1;
     /* Prevent shrinking in flex container */
-    overflow: hidden;
-    /* Hide content when collapsed */
+    overflow: visible;
 }
 
 .sidebar.collapsed {
-    width: 0;
+    width: 4px;
     padding: 0;
     overflow: visible;
     border-right: none;
+    box-shadow: none;
 }
 
 .sidebar-header {
@@ -100,16 +101,16 @@
 
 .sidebar:not(.collapsed) .toggle-btn {
     position: absolute;
-    top: 3.5rem;
-    right: 0;
-    width: 26px;
-    height: 42px;
+    top: 50%;
+    right: -22px;
+    width: 22px;
+    height: 44px;
     padding: 0;
     border: 1px solid #e3e7e5;
-    border-right: 0;
-    border-radius: 0.625rem 0 0 0.625rem;
+    border-radius: 0 0.625rem 0.625rem 0;
     background: #fff;
-    box-shadow: -2px 2px 7px rgb(0 0 0 / 0.12);
+    box-shadow: 2px 2px 7px rgb(0 0 0 / 0.12);
+    transform: translateY(-50%);
     z-index: 10;
 }
 
@@ -120,17 +121,17 @@
 
 .sidebar.collapsed .toggle-btn {
     position: absolute;
-    top: 3.5rem;
-    left: 0;
+    top: 50%;
+    left: 4px;
     right: auto;
-    width: 26px;
-    height: 42px;
+    width: 22px;
+    height: 44px;
     padding: 0;
     border: 1px solid #e3e7e5;
-    border-left: 0;
     border-radius: 0 0.625rem 0.625rem 0;
     background: #fff;
     box-shadow: 2px 2px 7px rgb(0 0 0 / 0.12);
+    transform: translateY(-50%);
     z-index: 10;
 }
 
