@@ -35,7 +35,13 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
                     </div>
                     {!isCollapsed && <span className="sidebar-brand-title">컨설팅 현황</span>}
                 </div>
-                <button className="toggle-btn" onClick={toggleSidebar}>
+                <button
+                    type="button"
+                    className="toggle-btn"
+                    onClick={toggleSidebar}
+                    aria-label={isCollapsed ? '메뉴 열기' : '메뉴 닫기'}
+                    title={isCollapsed ? '메뉴 열기' : '메뉴 닫기'}
+                >
                     {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
                 </button>
             </div>
