@@ -16,8 +16,8 @@ export const BUDGET_TYPES = {
   career: {
     id: 'career',
     label: '진로예산',
-    fileHint: '진로예산 엑셀',
-    downloadPrefix: '진로예산_지출처리',
+    fileHint: '출석부 엑셀 (진로개발 등)',
+    downloadPrefix: '진로예산_지출결의상세',
   },
   employment: {
     id: 'employment',
@@ -153,11 +153,16 @@ export function buildExpenseDocument({ budgetType, workbook }) {
   });
 }
 
-export async function downloadExpenseWord({ budgetType, workbook, employmentModel }) {
+export async function downloadExpenseWord({ budgetType, workbook, employmentModel, careerModel }) {
   if (budgetType === 'employment') {
     if (!employmentModel) throw new Error('취업예산 분석 결과가 없습니다.');
     const { downloadEmploymentExpenseWord } = await import('./employmentExpenseDoc.js');
     return downloadEmploymentExpenseWord(employmentModel);
+  }
+  if (budgetType === 'career') {
+    if (!careerModel) throw new Error('진로예산 분석 결과가 없습니다.');
+    const { downloadCareerExpenseWord } = await import('./careerExpenseDoc.js');
+    return downloadCareerExpenseWord(careerModel);
   }
 
   const meta = BUDGET_TYPES[budgetType];
