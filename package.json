@@ -20,6 +20,7 @@
     "seed:user": "node scripts/seed-user.js"
   },
   "dependencies": {
+    "docx": "^9.15.2",
     "exceljs": "^4.4.0",
     "firebase": "^12.9.0",
     "html2canvas": "^1.4.1",
@@ -29,7 +30,7 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.0",
     "recharts": "^3.5.1",
-    "xlsx": "^0.20.3",
+    "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
