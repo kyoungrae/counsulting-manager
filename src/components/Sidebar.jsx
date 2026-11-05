@@ -34,7 +34,7 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
                     <div className="sidebar-logo-box">
                         <img src={ewhaLogo} alt="이화 로고" className="sidebar-logo-image" />
                     </div>
-                    {!isCollapsed && <span className="sidebar-brand-title">컨설팅 현황</span>}
+                    {!isCollapsed && <span className="sidebar-brand-title">월간 컨설팅</span>}
                 </div>
                 <button
                     type="button"
