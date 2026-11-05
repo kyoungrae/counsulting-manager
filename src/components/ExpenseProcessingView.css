@@ -1,7 +1,51 @@
+.expense-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
 .expense-processing .expense-lead {
     margin: 0 0 8px;
     color: #666;
     font-size: 0.95rem;
+}
+
+.expense-processing .expense-upload-section {
+    height: auto;
+    min-height: 0;
+    max-width: 720px;
+    gap: 12px;
+}
+
+.expense-processing .expense-drop-zone {
+    min-height: 108px;
+    padding: 12px 14px;
+    justify-content: center;
+}
+
+.expense-processing .expense-drop-zone .upload-icon {
+    margin-bottom: 6px;
+}
+
+.expense-processing .expense-drop-zone .zone-title {
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.expense-processing .expense-drop-zone .zone-desc {
+    font-size: 0.82rem;
+}
+
+.expense-processing .expense-drop-zone .file-info {
+    margin-top: 8px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .expense-processing .drop-zone.has-file {
@@ -16,14 +60,6 @@
     background: #00462A;
     color: #fff;
     font-size: 0.75rem;
-}
-
-.expense-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    flex-wrap: wrap;
 }
 
 .expense-download-group {

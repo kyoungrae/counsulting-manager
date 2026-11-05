@@ -96,18 +96,24 @@ const ExpenseProcessingView = () => {
 
     return (
         <div className="satisfaction-match-container expense-processing">
-            <div className="ewha-header" style={{ marginBottom: 4 }}>
-                <h1>지출처리</h1>
+            <div className="expense-topbar">
+                <div className="ewha-header" style={{ marginBottom: 0 }}>
+                    <h1>지출처리</h1>
+                </div>
+                <button type="button" className="reset-btn" onClick={handleReset}>
+                    <RotateCcw size={16} />
+                    초기화
+                </button>
             </div>
             <p className="expense-lead">
                 진로예산 / 취업예산 출석부 엑셀을 각각 올리면 시트별로 집계하고, 지출결의 상세내용 양식의 워드(.docx)로 내려받습니다.
             </p>
 
-            <div className="upload-section">
+            <div className="upload-section expense-upload-section">
                 {ZONES.map((zone) => (
                     <div
                         key={zone.id}
-                        className={`drop-zone ${isDragging[zone.id] ? 'drag-active' : ''} ${workbooks[zone.id] ? 'has-file' : ''}`}
+                        className={`drop-zone expense-drop-zone ${isDragging[zone.id] ? 'drag-active' : ''} ${workbooks[zone.id] ? 'has-file' : ''}`}
                         onClick={() => inputRefs[zone.id]?.current?.click()}
                         onDragOver={(e) => {
                             e.preventDefault();
@@ -121,12 +127,12 @@ const ExpenseProcessingView = () => {
                             handleFile(file, zone.id);
                         }}
                     >
-                        <Upload size={32} className="upload-icon" />
+                        <Upload size={22} className="upload-icon" />
                         <span className="zone-title">{zone.label}</span>
                         <span className="zone-desc">{zone.fileHint}</span>
                         {workbooks[zone.id] && (
                             <div className="file-info">
-                                <FileText size={16} />
+                                <FileText size={14} />
                                 {workbooks[zone.id].fileName}
                                 <span className="sheet-count">{workbooks[zone.id].sheets.length}개 시트</span>
                             </div>
@@ -143,13 +149,6 @@ const ExpenseProcessingView = () => {
                         />
                     </div>
                 ))}
-            </div>
-
-            <div className="expense-toolbar">
-                <button type="button" className="reset-btn" onClick={handleReset}>
-                    <RotateCcw size={16} />
-                    초기화
-                </button>
             </div>
 
             {error && (
