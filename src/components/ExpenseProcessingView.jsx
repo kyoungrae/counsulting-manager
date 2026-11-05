@@ -150,21 +150,6 @@ const ExpenseProcessingView = () => {
                     <RotateCcw size={16} />
                     초기화
                 </button>
-                <div className="expense-download-group">
-                    {ZONES.map((zone) => (
-                        <button
-                            key={zone.id}
-                            type="button"
-                            className="download-btn"
-                            disabled={!workbooks[zone.id] || !models[zone.id] || isDownloading}
-                            onClick={() => handleDownload(zone.id)}
-                            title={workbooks[zone.id] ? `${zone.label} 결과 다운로드` : `${zone.label} 파일을 먼저 업로드하세요`}
-                        >
-                            <Download size={16} />
-                            {zone.label} 지출결의 상세(워드)
-                        </button>
-                    ))}
-                </div>
             </div>
 
             {error && (
@@ -216,6 +201,21 @@ const ExpenseProcessingView = () => {
                                     </button>
                                 ))}
                             </div>
+                        </div>
+                        <div className="expense-download-group">
+                            {ZONES.map((zone) => (
+                                <button
+                                    key={zone.id}
+                                    type="button"
+                                    className="download-btn"
+                                    disabled={!workbooks[zone.id] || !models[zone.id] || isDownloading}
+                                    onClick={() => handleDownload(zone.id)}
+                                    title={workbooks[zone.id] ? `${zone.label} 결과 다운로드` : `${zone.label} 파일을 먼저 업로드하세요`}
+                                >
+                                    <Download size={16} />
+                                    {zone.label} 지출결의 상세(워드)
+                                </button>
+                            ))}
                         </div>
                     </div>
 

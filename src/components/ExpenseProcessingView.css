@@ -21,7 +21,7 @@
 .expense-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
     flex-wrap: wrap;
 }
@@ -30,6 +30,15 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.expense-processing .results-header {
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.expense-processing .results-header .expense-download-group {
     margin-left: auto;
 }
 
