@@ -16,7 +16,7 @@ export const BUDGET_TYPES = {
   career: {
     id: 'career',
     label: '진로예산',
-    fileHint: '출석부 엑셀 (진로개발 등)',
+    fileHint: '진로컨설팅 출석부 엑셀',
     downloadPrefix: '진로예산_지출결의상세',
   },
   employment: {
