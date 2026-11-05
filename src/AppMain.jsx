@@ -14,7 +14,7 @@ function AppMain() {
       <main className="main-content">
         {activeMenu === '만족도 일치여부' ? (
           <SatisfactionMatch />
-        ) : activeMenu === '결과 보고서용 데이터 추출' ? (
+        ) : activeMenu === '결과보고서' ? (
           <DataExtractionView />
         ) : activeMenu === '결과 보고서 작성' ? (
           <ResultReportBuilder />
