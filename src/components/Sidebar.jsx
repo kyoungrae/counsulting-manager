@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, GraduationCap, Users, FileText, BarChart2, AlertCircle, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GraduationCap, Users, FileText, BarChart2, AlertCircle, LogOut, Receipt } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AUTH_ENABLED } from '../routes/ProtectedRoute';
 import ewhaLogo from '../assets/symbol-mark.png';
@@ -18,6 +18,7 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
         { id: 'stats', label: '통합통계', icon: <BarChart2 size={20} /> },
         { id: 'satisfaction-match', label: '만족도 일치여부', icon: <FileText size={20} /> },
         { id: 'data-extraction', label: '결과보고서', icon: <BarChart2 size={20} /> },
+        { id: 'expense-processing', label: '지출처리', icon: <Receipt size={20} /> },
         // { id: 'result-report-builder', label: '결과 보고서 작성', icon: <FileText size={20} /> },
         { id: 'restriction', label: '신청 제한', icon: <AlertCircle size={20} /> }
     ];
