@@ -22,8 +22,8 @@ export const BUDGET_TYPES = {
   employment: {
     id: 'employment',
     label: '취업예산',
-    fileHint: '취업예산 엑셀',
-    downloadPrefix: '취업예산_지출처리',
+    fileHint: '출석부 엑셀 (서류면접/서면첨삭)',
+    downloadPrefix: '취업예산_지출결의상세',
   },
 };
 
@@ -153,7 +153,13 @@ export function buildExpenseDocument({ budgetType, workbook }) {
   });
 }
 
-export async function downloadExpenseWord({ budgetType, workbook }) {
+export async function downloadExpenseWord({ budgetType, workbook, employmentModel }) {
+  if (budgetType === 'employment') {
+    if (!employmentModel) throw new Error('취업예산 분석 결과가 없습니다.');
+    const { downloadEmploymentExpenseWord } = await import('./employmentExpenseDoc.js');
+    return downloadEmploymentExpenseWord(employmentModel);
+  }
+
   const meta = BUDGET_TYPES[budgetType];
   const doc = buildExpenseDocument({ budgetType, workbook });
   const blob = await Packer.toBlob(doc);

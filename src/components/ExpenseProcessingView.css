@@ -89,3 +89,61 @@
 .expense-preview-table {
     min-width: max-content;
 }
+
+.expense-summary-card {
+    padding: 14px 16px;
+    border: 1px solid #d8e7dd;
+    background: #f7fbf8;
+    border-radius: 10px;
+}
+
+.expense-summary-title {
+    font-weight: 700;
+    color: #00462A;
+    margin-bottom: 8px;
+}
+
+.expense-summary-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    font-size: 0.92rem;
+    color: #333;
+}
+
+.expense-summary-note {
+    margin-top: 10px;
+    font-size: 0.82rem;
+    color: #666;
+}
+
+.expense-blocks-preview {
+    padding: 16px 20px 24px;
+}
+
+.expense-block-heading {
+    margin: 8px 0 12px;
+    color: #00462A;
+    font-size: 1.05rem;
+}
+
+.expense-block {
+    margin-bottom: 14px;
+}
+
+.expense-block-title {
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 4px;
+}
+
+.expense-block ul {
+    margin: 0;
+    padding-left: 18px;
+    color: #444;
+    font-size: 0.92rem;
+}
+
+.expense-block li {
+    margin: 2px 0;
+}
