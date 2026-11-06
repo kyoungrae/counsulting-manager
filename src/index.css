@@ -48,6 +48,32 @@ body {
   flex: 1;
   background-color: #F9F9F9;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main-content-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.app-brand-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 24px 16px;
+  background: #F9F9F9;
+  border-top: 1px solid #e8ece9;
+}
+
+.app-brand-footer-logo {
+  height: 36px;
+  width: auto;
+  max-width: min(420px, 70vw);
+  object-fit: contain;
+  display: block;
 }
 
 /* Response for mobile */
