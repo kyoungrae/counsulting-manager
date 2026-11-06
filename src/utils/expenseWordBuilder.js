@@ -153,9 +153,19 @@ export function buildExpenseDocument({ budgetType, workbook }) {
   });
 }
 
-export async function downloadExpenseWord({ budgetType, workbook, employmentModel, careerModel }) {
+export async function downloadExpenseWord({
+  budgetType,
+  workbook,
+  employmentModel,
+  careerModel,
+  docKind = 'detail',
+}) {
   if (budgetType === 'employment') {
     if (!employmentModel) throw new Error('취업예산 분석 결과가 없습니다.');
+    if (docKind === 'receipt') {
+      const { downloadEmploymentReceiptWord } = await import('./employmentReceiptDoc.js');
+      return downloadEmploymentReceiptWord(employmentModel);
+    }
     const { downloadEmploymentExpenseWord } = await import('./employmentExpenseDoc.js');
     return downloadEmploymentExpenseWord(employmentModel);
   }

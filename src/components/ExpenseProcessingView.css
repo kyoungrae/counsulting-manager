@@ -194,3 +194,57 @@
 .expense-block li {
     margin: 2px 0;
 }
+
+.expense-receipt-preview {
+    padding: 16px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.receipt-card {
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #fff;
+    padding: 14px 16px 16px;
+}
+
+.receipt-card-title {
+    text-align: center;
+    font-weight: 700;
+    color: #00462A;
+    margin-bottom: 12px;
+    font-size: 1.05rem;
+}
+
+.receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.receipt-table th,
+.receipt-table td {
+    border: 1px solid #d1d5db;
+    padding: 8px 10px;
+    vertical-align: top;
+    font-size: 0.9rem;
+}
+
+.receipt-table th {
+    width: 160px;
+    background: #f3f4f6;
+    color: #333;
+    font-weight: 600;
+    text-align: left;
+}
+
+.receipt-multiline {
+    white-space: pre-line;
+}
+
+.receipt-missing {
+    margin-top: 8px;
+    color: #b45309;
+    font-size: 0.82rem;
+}
