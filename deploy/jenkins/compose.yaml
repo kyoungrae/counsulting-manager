@@ -1,0 +1,54 @@
+# Deployment from the Docker-backed Jenkins container. Every mount is a named
+# volume: Jenkins workspace paths do not exist on the Docker Desktop host.
+name: consulting-manager
+
+services:
+  mongodb:
+    image: ${MONGO_IMAGE:?Set MONGO_IMAGE to the verified commit image}
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: consulting_root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Runtime credential requires MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGODB_DB:-consulting_manager}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?Runtime credential requires MONGO_APP_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - const admin = db.getSiblingDB('admin'); admin.auth(process.env.MONGO_INITDB_ROOT_USERNAME, process.env.MONGO_INITDB_ROOT_PASSWORD); if (admin.runCommand({ping:1}).ok !== 1) quit(1)
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
+  app:
+    image: ${API_IMAGE:?Set API_IMAGE to the verified commit image}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3080
+      MONGODB_URI: mongodb://consulting_app:${MONGO_APP_PASSWORD:?Runtime credential requires MONGO_APP_PASSWORD}@mongodb:27017/${MONGODB_DB:-consulting_manager}?authSource=${MONGODB_DB:-consulting_manager}
+      MONGODB_DB: ${MONGODB_DB:-consulting_manager}
+      SESSION_SECRET: ${SESSION_SECRET:?Runtime credential requires SESSION_SECRET}
+      APP_ORIGIN: ${APP_ORIGIN:?Runtime credential requires APP_ORIGIN}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://y2-consulting.firebaseapp.com}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      LOG_REQUESTS: ${LOG_REQUESTS:-false}
+    ports:
+      - 127.0.0.1:3080:3080
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
+    # Reuse the existing production DB. The pipeline requires it to exist.
+    external: true
+    name: consulting-manager_mongo_data

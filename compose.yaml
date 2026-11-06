@@ -1,0 +1,74 @@
+name: consulting-manager
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  PORT: 3080
+  MONGODB_URI: mongodb://consulting_app:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env}@mongodb:27017/${MONGODB_DB:-consulting_manager}?authSource=${MONGODB_DB:-consulting_manager}
+  MONGODB_DB: ${MONGODB_DB:-consulting_manager}
+  SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+  APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3080}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  TRUST_PROXY: ${TRUST_PROXY:-loopback}
+  LOG_REQUESTS: ${LOG_REQUESTS:-false}
+
+services:
+  mongodb:
+    image: mongo:8.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: consulting_root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+      MONGO_INITDB_DATABASE: ${MONGODB_DB:-consulting_manager}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env}
+    volumes:
+      - mongo_data:/data/db
+      - ./deploy/mongo-init.js:/docker-entrypoint-initdb.d/10-app-user.js:ro
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - const admin = db.getSiblingDB('admin'); admin.auth(process.env.MONGO_INITDB_ROOT_USERNAME, process.env.MONGO_INITDB_ROOT_PASSWORD); if (admin.runCommand({ping:1}).ok !== 1) quit(1)
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
+  app:
+    image: consulting-manager:local
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    restart: unless-stopped
+    init: true
+    environment: *app-environment
+    ports:
+      - 127.0.0.1:3080:3080
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  manage:
+    image: consulting-manager:local
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    profiles: [tools]
+    init: true
+    env_file:
+      - .env.bootstrap.local
+    environment: *app-environment
+    command: [node, scripts/seed-user.js]
+    healthcheck:
+      disable: true
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+volumes:
+  mongo_data:

@@ -1,0 +1,5 @@
+# Host-run API development only; production keeps MongoDB unpublished.
+services:
+  mongodb:
+    ports:
+      - 127.0.0.1:27029:27017

@@ -43,11 +43,7 @@ export default function LoginPage() {
       await login(userId, password)
       navigate('/')
     } catch (err) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError(err.message || '아이디 또는 비밀번호가 올바르지 않습니다.')
-      } else {
-        setError(err.message || '로그인에 실패했습니다. 다시 시도해주세요.')
-      }
+      setError(err.message || '로그인에 실패했습니다. 다시 시도해주세요.')
     } finally {
       setLoading(false)
     }
@@ -71,7 +67,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="login-error-box">
+          <div className="login-error-box" role="alert">
             <AlertCircle size={18} className="login-error-icon" />
             <span>{error}</span>
           </div>
@@ -84,6 +80,7 @@ export default function LoginPage() {
               <User size={18} className="form-input-icon" />
               <input
                 type="text"
+                autoComplete="username"
                 className="form-input form-input--with-icon"
                 placeholder="아이디를 입력하세요"
                 value={userId}
@@ -99,6 +96,7 @@ export default function LoginPage() {
               <Lock size={18} className="form-input-icon" />
               <input
                 type="password"
+                autoComplete="current-password"
                 className="form-input form-input--with-icon"
                 placeholder="비밀번호를 입력하세요"
                 value={password}

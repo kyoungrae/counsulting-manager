@@ -12,8 +12,12 @@ dist
 dist-ssr
 *.local
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.users-export.json
+users.json
+migrations/
+backups/
 serviceAccountKey.json
 *-serviceAccountKey.json
 

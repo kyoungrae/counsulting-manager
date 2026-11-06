@@ -1,27 +1,25 @@
-const { app, BrowserWindow } = require('electron');
-const path = require('path');
+const { app, BrowserWindow, dialog } = require('electron');
 
-// CRITICAL FIX: Force V8 to run in interpreter mode without JIT to prevent SIGTRAP crashes
-// Set environment variables BEFORE any other Electron code runs
-// process.env.ELECTRON_RUN_AS_NODE = '0';
-// process.env.ELECTRON_DISABLE_SANDBOX = '1';
-
-// Apply comprehensive V8 and Chromium flags to maximize stability
-// app.commandLine.appendSwitch('no-sandbox');
-// app.commandLine.appendSwitch('disable-gpu');
-// app.commandLine.appendSwitch('disable-software-rasterizer');
-// app.commandLine.appendSwitch('disable-dev-shm-usage');
-// app.commandLine.appendSwitch('disable-accelerated-2d-canvas');
-// app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
-// app.commandLine.appendSwitch('js-flags', '--jitless --no-opt --no-turbo --no-concurrent-recompilation');
-
-// Disable all hardware acceleration
 app.disableHardwareAcceleration();
 
-let mainWindow;
+function getAppURL() {
+    if (!app.isPackaged) return new URL('http://localhost:5173');
+    const value = process.env.EWHA_APP_URL || 'https://y2-consulting.web.app';
+    let url;
+    try {
+        url = new URL(value);
+    } catch {
+        throw new Error('EWHA_APP_URL에 올바른 HTTPS 주소를 입력해주세요.');
+    }
+    if (url.protocol !== 'https:' || url.username || url.password) {
+        throw new Error('EWHA_APP_URL에는 사용자 정보가 없는 HTTPS 주소를 입력해주세요.');
+    }
+    return url;
+}
 
-function createWindow() {
-    mainWindow = new BrowserWindow({
+async function createWindow() {
+    const appURL = getAppURL();
+    const window = new BrowserWindow({
         width: 1400,
         height: 900,
         minWidth: 1000,
@@ -29,32 +27,40 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            enableRemoteModule: false,
-            preload: path.join(__dirname, 'preload.js') // Optional if needed later
+            sandbox: true,
         },
         titleBarStyle: 'default',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
     });
 
-    // Load the app
-    if (process.env.NODE_ENV === 'development') {
-        mainWindow.loadURL('http://localhost:5173');
-        // mainWindow.webContents.openDevTools();
-    } else {
-        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-    }
-
-    mainWindow.on('closed', function () {
-        mainWindow = null;
-    });
+    // Keep authentication and API requests on the configured service origin.
+    const restrictNavigation = (event, destination) => {
+        try {
+            if (new URL(destination).origin === appURL.origin) return;
+        } catch {
+            // Invalid destinations are blocked too.
+        }
+        event.preventDefault();
+    };
+    window.webContents.on('will-navigate', restrictNavigation);
+    window.webContents.on('will-redirect', restrictNavigation);
+    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    await window.loadURL(appURL.href);
 }
 
-app.on('ready', createWindow);
+function showLaunchError(error) {
+    dialog.showErrorBox('앱을 열 수 없습니다', error.message);
+    app.quit();
+}
 
-app.on('window-all-closed', function () {
+app.whenReady().then(createWindow).catch(showLaunchError);
+
+app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('activate', function () {
-    if (mainWindow === null) createWindow();
+app.on('activate', () => {
+    if (app.isReady() && BrowserWindow.getAllWindows().length === 0) {
+        createWindow().catch(showLaunchError);
+    }
 });

@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job">
+  <description>월간 컨설팅 수동 배포. main을 검증하고 MacBook Docker API·MongoDB 및 기존 Firebase Hosting을 배포합니다. Git push는 배포를 시작하지 않습니다.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator"><numToKeep>20</numToKeep></strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.BooleanParameterDefinition>
+          <name>VERIFY_ONLY</name>
+          <description>체크하면 검증만 실행하고 운영 Docker·Hosting 배포를 생략합니다.</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty><triggers/></org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps">
+    <script><![CDATA[
+properties([
+  pipelineTriggers([]),
+  disableConcurrentBuilds(),
+  buildDiscarder(logRotator(numToKeepStr: '20')),
+  parameters([booleanParam(name: 'VERIFY_ONLY', defaultValue: false,
+    description: '체크하면 검증만 실행하고 운영 배포를 생략합니다.')])
+])
+node {
+  timestamps {
+    stage('Checkout main') {
+      deleteDir()
+      withCredentials([usernamePassword(
+        credentialsId: 'accountbook-github',
+        usernameVariable: 'GITHUB_USERNAME',
+        passwordVariable: 'GITHUB_TOKEN'
+      )]) {
+        sh '''#!/bin/sh
+set -eu
+askpass="$(mktemp)"
+trap 'rm -f "$askpass"' EXIT HUP INT TERM
+cat > "$askpass" <<'EOF'
+#!/bin/sh
+case "$1" in
+  *Username*) printf '%s\\n' "$GITHUB_USERNAME" ;;
+  *Password*) printf '%s\\n' "$GITHUB_TOKEN" ;;
+  *) exit 1 ;;
+esac
+EOF
+chmod 700 "$askpass"
+GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch main https://github.com/kyoungrae/counsulting-manager.git .
+git rev-parse --verify HEAD
+'''
+      }
+    }
+    load 'Jenkinsfile'
+  }
+}
+]]></script>
+    <sandbox>true</sandbox>
+  </definition>
+  <disabled>false</disabled>
+</flow-definition>

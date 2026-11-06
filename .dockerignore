@@ -1,0 +1,27 @@
+.git
+.firebase
+.agents
+.codex
+.aws
+node_modules
+dist
+release
+# Vite bundles this report template. Exclude every other uploaded document.
+documents/*
+!documents/결과 보고서 메뉴/
+documents/결과 보고서 메뉴/*
+!documents/결과 보고서 메뉴/인재개발원 진로취업컨설팅 진행 결과 보고(2026년 2월)  _ 개발용 결과보고서 예시.xlsx
+build
+*.log
+.env
+.env.*
+!.env.example
+serviceAccountKey.json
+*-serviceAccountKey.json
+users.json
+*.users-export.json
+migrations
+backups
+*.dmg
+*.exe
+.DS_Store
