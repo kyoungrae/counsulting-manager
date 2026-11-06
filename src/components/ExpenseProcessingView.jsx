@@ -271,30 +271,28 @@ const ExpenseProcessingView = () => {
                                         ) : (
                                             receiptItems.map((item) => (
                                                 <div key={item.id} className="receipt-card">
-                                                    <div className="receipt-card-title">[취업컨설팅] 강사비 지급내역</div>
+                                                    <div className="receipt-card-kicker">[취업컨설팅]</div>
+                                                    <div className="receipt-card-title">강사비 지급내역</div>
                                                     <table className="receipt-table">
                                                         <tbody>
                                                             <tr>
-                                                                <th>내 용</th>
+                                                                <th>내용</th>
                                                                 <td>{item.contentLabel}</td>
                                                             </tr>
                                                             <tr>
-                                                                <th>금 액</th>
-                                                                <td>
-                                                                    총 {item.sessionCount}세션<br />
-                                                                    세션당 {formatWon(item.rate)}원 = {formatWon(item.amount)}원
-                                                                </td>
+                                                                <th>지급액</th>
+                                                                <td>{item.amountText}</td>
                                                             </tr>
                                                             <tr>
                                                                 <th>강의일시</th>
                                                                 <td className="receipt-multiline">{item.dayText}</td>
                                                             </tr>
                                                             <tr>
-                                                                <th>장 소</th>
+                                                                <th>장소</th>
                                                                 <td>{item.place}</td>
                                                             </tr>
                                                             <tr>
-                                                                <th>성 명 (고유번호)</th>
+                                                                <th>성명 (고유번호)</th>
                                                                 <td>
                                                                     {item.displayName}
                                                                     {item.profile?.code ? ` (${item.profile.code})` : ''}
@@ -310,15 +308,11 @@ const ExpenseProcessingView = () => {
                                                             </tr>
                                                             <tr>
                                                                 <th>소속 및 주소</th>
-                                                                <td>{item.profile?.affiliation || '-'}</td>
+                                                                <td className="receipt-multiline">{item.affiliationText || '-'}</td>
                                                             </tr>
                                                             <tr>
-                                                                <th>계좌번호</th>
-                                                                <td>
-                                                                    {item.profile
-                                                                        ? `은행명: ${item.profile.bank || '-'}  계좌번호: ${item.profile.account || '-'}  예금주: ${item.profile.accountHolder || item.displayName}`
-                                                                        : '-'}
-                                                                </td>
+                                                                <th>통장번호</th>
+                                                                <td className="receipt-multiline">{item.accountText || '-'}</td>
                                                             </tr>
                                                         </tbody>
                                                     </table>

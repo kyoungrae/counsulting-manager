@@ -9,6 +9,7 @@ import {
   WidthType,
   BorderStyle,
   AlignmentType,
+  VerticalAlign,
   PageBreak,
   ImageRun,
 } from 'docx';
@@ -19,6 +20,8 @@ import ewhaCdcLogoUrl from '../assets/ewha-cdc-logo.png';
 const FONT = '맑은 고딕';
 const thin = { style: BorderStyle.SINGLE, size: 8, color: '000000' };
 const borders = { top: thin, bottom: thin, left: thin, right: thin };
+const LABEL_W = 2400;
+const VALUE_W = 6800;
 
 /** 영수증 하단 인재개발원 로고 (원본 2275x345) */
 const LOGO_WIDTH_PX = 280;
@@ -30,38 +33,90 @@ async function loadEwhaCdcLogoBytes() {
   return new Uint8Array(await res.arrayBuffer());
 }
 
-function p(text, opts = {}) {
-  const { bold = false, size = 20, center = false, after = 40, before = 0 } = opts;
+function textRun(text, opts = {}) {
+  const { bold = false, size = 20 } = opts;
+  return new TextRun({ text: String(text ?? ''), bold, size, font: FONT });
+}
+
+function para(text, opts = {}) {
+  const {
+    bold = false,
+    size = 20,
+    center = false,
+    after = 0,
+    before = 0,
+  } = opts;
   return new Paragraph({
     alignment: center ? AlignmentType.CENTER : AlignmentType.LEFT,
     spacing: { before, after },
-    children: [new TextRun({ text: String(text ?? ''), bold, size, font: FONT })],
+    children: [textRun(text, { bold, size })],
   });
 }
 
-function labelCell(text, width) {
+function multilineParas(text, opts = {}) {
+  const lines = String(text ?? '').split('\n');
+  return lines.map((line, idx) =>
+    para(line, {
+      ...opts,
+      after: idx === lines.length - 1 ? (opts.after || 0) : 40,
+    })
+  );
+}
+
+function labelCell(text) {
   return new TableCell({
     borders,
-    width: { size: width, type: WidthType.DXA },
-    shading: { fill: 'F3F4F6' },
-    children: [p(text, { bold: true, size: 18 })],
+    width: { size: LABEL_W, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [textRun(text, { bold: true, size: 20 })],
+      }),
+    ],
   });
 }
 
-function valueCell(text, width, opts = {}) {
+function valueCell(textOrLines) {
+  const paras = Array.isArray(textOrLines)
+    ? textOrLines
+    : multilineParas(textOrLines, { size: 20 });
   return new TableCell({
     borders,
-    width: { size: width, type: WidthType.DXA },
-    columnSpan: opts.span,
-    children: [p(text, { size: 18, ...opts })],
+    width: { size: VALUE_W, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    children: paras.length ? paras : [para('-', { size: 20 })],
   });
 }
 
 function formatDayLines(days) {
   if (!days?.length) return '-';
   return days
-    .map((d) => `${d.dayKey} – ${(d.times || []).join(', ')} (${d.count}세션)`)
+    .map((d) => `${d.dayKey} - ${(d.times || []).join(', ')} (${d.count}세션)`)
     .join('\n');
+}
+
+function formatAffiliation(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return '-';
+  if (raw.includes('\n')) return raw;
+  const idx = raw.indexOf(' / ');
+  if (idx > 0) {
+    return `${raw.slice(0, idx)}\n/ ${raw.slice(idx + 3)}`;
+  }
+  return raw;
+}
+
+function formatAmount(item) {
+  return `총 ${item.sessionCount}세션*세션당 ${formatWon(item.rate)}원 = ${formatWon(item.amount)}원`;
+}
+
+function formatAccount(profile, displayName) {
+  return [
+    `은행 명: ${profile?.bank || '-'}`,
+    `계좌번호: ${profile?.account || '-'}`,
+    `예금주: ${profile?.accountHolder || displayName || '-'}`,
+  ].join('\n');
 }
 
 /**
@@ -73,17 +128,25 @@ export function buildEmploymentReceiptItems(model) {
 
   (model?.interviewBlocks || []).forEach((block) => {
     const profile = findConsultantProfile(block.consultant || block.displayName);
+    const displayName = block.displayName || block.consultant;
     items.push({
       id: `interview-${block.consultant}`,
       kind: '서류면접',
       contentLabel: '취업컨설팅(서류면접)',
-      displayName: block.displayName || block.consultant,
+      displayName,
       sessionCount: block.sessionCount,
       rate: block.rate,
       amount: block.amount,
+      amountText: formatAmount({
+        sessionCount: block.sessionCount,
+        rate: block.rate,
+        amount: block.amount,
+      }),
       days: block.days || [],
       dayText: formatDayLines(block.days),
       place: profile?.placeInterview || '온라인 ZOOM',
+      affiliationText: formatAffiliation(profile?.affiliation),
+      accountText: formatAccount(profile, displayName),
       profile,
       period,
       missingProfile: !profile,
@@ -92,17 +155,27 @@ export function buildEmploymentReceiptItems(model) {
 
   const pushCorrection = (block, langLabel) => {
     const profile = findConsultantProfile(block.consultant || block.displayName);
+    const displayName = block.displayName || block.consultant;
     items.push({
       id: `correction-${langLabel}-${block.consultant}`,
       kind: '서면첨삭',
       contentLabel: `취업컨설팅(서면첨삭·${langLabel})`,
-      displayName: block.displayName || block.consultant,
+      displayName,
       sessionCount: block.sessionCount,
       rate: block.rate,
       amount: block.amount,
+      amountText: formatAmount({
+        sessionCount: block.sessionCount,
+        rate: block.rate,
+        amount: block.amount,
+      }),
       days: block.days || [],
-      dayText: formatDayLines(block.days) || `${period?.month || ''}/1~${period?.month || ''}/말 (온라인 접수)`,
+      dayText:
+        formatDayLines(block.days)
+        || `${period?.month || ''}/1~${period?.month || ''}/말 (온라인 접수)`,
       place: profile?.placeCorrection || '온라인 접수',
+      affiliationText: formatAffiliation(profile?.affiliation),
+      accountText: formatAccount(profile, displayName),
       profile,
       period,
       missingProfile: !profile,
@@ -120,70 +193,27 @@ function receiptTable(item) {
   const nameWithCode = profile.code
     ? `${item.displayName} (${profile.code})`
     : item.displayName;
-  const accountText = profile.bank || profile.account
-    ? `은행명: ${profile.bank || '-'}  계좌번호: ${profile.account || '-'}  예금주: ${profile.accountHolder || item.displayName}`
-    : '은행명: -  계좌번호: -  예금주: -';
-  const amountText = `총 ${item.sessionCount}세션\n세션당 ${formatWon(item.rate)}원 = ${formatWon(item.amount)}원`;
 
   const rows = [
-    new TableRow({
-      children: [
-        labelCell('내 용', 2200),
-        valueCell(item.contentLabel, 7000, { span: 1 }),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('금 액', 2200),
-        valueCell(amountText, 7000),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('강의일시', 2200),
-        valueCell(item.dayText, 7000),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('장 소', 2200),
-        valueCell(item.place, 7000),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('성 명 (고유번호)', 2200),
-        valueCell(nameWithCode, 7000),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('생년월일', 2200),
-        valueCell(profile.birth || '-', 7000),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('핸드폰번호', 2200),
-        valueCell(profile.phone || '-', 7000),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('소속 및 주소', 2200),
-        valueCell(profile.affiliation || '-', 7000),
-      ],
-    }),
-    new TableRow({
-      children: [
-        labelCell('계좌번호', 2200),
-        valueCell(accountText, 7000),
-      ],
-    }),
-  ];
+    ['내용', item.contentLabel],
+    ['지급액', item.amountText],
+    ['강의일시', item.dayText],
+    ['장소', item.place],
+    ['성명 (고유번호)', nameWithCode],
+    ['생년월일', profile.birth || '-'],
+    ['핸드폰번호', profile.phone || '-'],
+    ['소속 및 주소', item.affiliationText || '-'],
+    ['통장번호', item.accountText || '-'],
+  ].map(
+    ([label, value]) =>
+      new TableRow({
+        children: [labelCell(label), valueCell(value)],
+      })
+  );
 
   return new Table({
-    width: { size: 9200, type: WidthType.DXA },
+    width: { size: LABEL_W + VALUE_W, type: WidthType.DXA },
+    columnWidths: [LABEL_W, VALUE_W],
     rows,
   });
 }
@@ -193,23 +223,27 @@ function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = n
   if (pageBreakBefore) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
   }
+
   children.push(
-    p('[취업컨설팅] 강사비 지급내역', { bold: true, size: 28, center: true, after: 200 }),
-    receiptTable(item),
+    para('[취업컨설팅]', { bold: true, size: 28, center: true, after: 60 }),
+    para('강사비 지급내역', { bold: true, size: 36, center: true, after: 240 }),
+    receiptTable(item)
   );
+
   if (item.missingProfile) {
     children.push(
-      p('※ 강사 인적/계좌 정보가 등록되어 있지 않습니다. 프로필을 추가해 주세요.', {
+      para('※ 강사 인적/계좌 정보가 등록되어 있지 않습니다. 프로필을 추가해 주세요.', {
         size: 16,
         before: 120,
       })
     );
   }
+
   if (logoBytes) {
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 280, after: 40 },
+        spacing: { before: 360, after: 40 },
         children: [
           new ImageRun({
             type: 'png',
@@ -225,6 +259,7 @@ function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = n
       })
     );
   }
+
   return children;
 }
 
@@ -242,7 +277,9 @@ export async function buildEmploymentReceiptDocument(model) {
     sections: [
       {
         properties: {
-          page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } },
+          page: {
+            margin: { top: 1008, right: 1008, bottom: 1008, left: 1008 },
+          },
         },
         children,
       },

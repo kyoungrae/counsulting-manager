@@ -209,12 +209,20 @@
     padding: 14px 16px 16px;
 }
 
+.receipt-card-kicker {
+    text-align: center;
+    font-weight: 700;
+    color: #111;
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
 .receipt-card-title {
     text-align: center;
     font-weight: 700;
-    color: #00462A;
-    margin-bottom: 12px;
-    font-size: 1.05rem;
+    color: #111;
+    margin-bottom: 16px;
+    font-size: 1.25rem;
 }
 
 .receipt-table {
@@ -225,18 +233,18 @@
 
 .receipt-table th,
 .receipt-table td {
-    border: 1px solid #d1d5db;
-    padding: 8px 10px;
-    vertical-align: top;
-    font-size: 0.9rem;
+    border: 1px solid #111;
+    padding: 10px 12px;
+    vertical-align: middle;
+    font-size: 0.92rem;
 }
 
 .receipt-table th {
-    width: 160px;
-    background: #f3f4f6;
-    color: #333;
-    font-weight: 600;
-    text-align: left;
+    width: 150px;
+    background: #fff;
+    color: #111;
+    font-weight: 700;
+    text-align: center;
 }
 
 .receipt-multiline {
