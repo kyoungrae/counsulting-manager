@@ -6,6 +6,7 @@ import { parseCareerBudgetFile } from '../utils/careerBudgetParser';
 import { BUDGET_TYPES, downloadExpenseWord } from '../utils/expenseWordBuilder';
 import { formatWon } from '../utils/employmentRateCatalog';
 import { buildEmploymentReceiptItems } from '../utils/employmentReceiptDoc';
+import ewhaCdcLogo from '../assets/ewha-cdc-logo.png';
 import './EwhaGrid.css';
 import './SatisfactionMatch.css';
 import './ExpenseProcessingView.css';
@@ -326,6 +327,12 @@ const ExpenseProcessingView = () => {
                                                             강사 인적/계좌 정보가 등록되어 있지 않습니다.
                                                         </div>
                                                     )}
+                                                    <div className="receipt-footer-logo">
+                                                        <img
+                                                            src={ewhaCdcLogo}
+                                                            alt="이화여자대학교 인재개발원 EWHA CAREER DEVELOPMENT CENTER"
+                                                        />
+                                                    </div>
                                                 </div>
                                             ))
                                         )}

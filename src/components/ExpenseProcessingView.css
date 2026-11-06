@@ -248,3 +248,16 @@
     color: #b45309;
     font-size: 0.82rem;
 }
+
+.receipt-footer-logo {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+    padding-top: 12px;
+}
+
+.receipt-footer-logo img {
+    width: min(280px, 70%);
+    height: auto;
+    object-fit: contain;
+}

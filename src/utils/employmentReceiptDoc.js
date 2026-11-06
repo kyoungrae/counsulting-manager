@@ -10,13 +10,25 @@ import {
   BorderStyle,
   AlignmentType,
   PageBreak,
+  ImageRun,
 } from 'docx';
 import { formatWon } from './employmentRateCatalog.js';
 import { findConsultantProfile } from './consultantProfiles.js';
+import ewhaCdcLogoUrl from '../assets/ewha-cdc-logo.png';
 
 const FONT = '맑은 고딕';
 const thin = { style: BorderStyle.SINGLE, size: 8, color: '000000' };
 const borders = { top: thin, bottom: thin, left: thin, right: thin };
+
+/** 영수증 하단 인재개발원 로고 (원본 2275x345) */
+const LOGO_WIDTH_PX = 280;
+const LOGO_HEIGHT_PX = Math.round((LOGO_WIDTH_PX * 345) / 2275);
+
+async function loadEwhaCdcLogoBytes() {
+  const res = await fetch(ewhaCdcLogoUrl);
+  if (!res.ok) throw new Error('인재개발원 로고 이미지를 불러오지 못했습니다.');
+  return new Uint8Array(await res.arrayBuffer());
+}
 
 function p(text, opts = {}) {
   const { bold = false, size = 20, center = false, after = 40, before = 0 } = opts;
@@ -176,7 +188,7 @@ function receiptTable(item) {
   });
 }
 
-function buildReceiptPageChildren(item, { pageBreakBefore = false } = {}) {
+function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = null } = {}) {
   const children = [];
   if (pageBreakBefore) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -193,16 +205,37 @@ function buildReceiptPageChildren(item, { pageBreakBefore = false } = {}) {
       })
     );
   }
+  if (logoBytes) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 280, after: 40 },
+        children: [
+          new ImageRun({
+            type: 'png',
+            data: logoBytes,
+            transformation: { width: LOGO_WIDTH_PX, height: LOGO_HEIGHT_PX },
+            altText: {
+              title: '이화여자대학교 인재개발원',
+              description: 'EWHA CAREER DEVELOPMENT CENTER',
+              name: 'ewha-cdc-logo',
+            },
+          }),
+        ],
+      })
+    );
+  }
   return children;
 }
 
-export function buildEmploymentReceiptDocument(model) {
+export async function buildEmploymentReceiptDocument(model) {
   const items = buildEmploymentReceiptItems(model);
   if (!items.length) throw new Error('영수증으로 만들 강사 집계가 없습니다.');
+  const logoBytes = await loadEwhaCdcLogoBytes();
 
   const children = [];
   items.forEach((item, idx) => {
-    children.push(...buildReceiptPageChildren(item, { pageBreakBefore: idx > 0 }));
+    children.push(...buildReceiptPageChildren(item, { pageBreakBefore: idx > 0, logoBytes }));
   });
 
   return new Document({
@@ -218,7 +251,7 @@ export function buildEmploymentReceiptDocument(model) {
 }
 
 export async function downloadEmploymentReceiptWord(model) {
-  const doc = buildEmploymentReceiptDocument(model);
+  const doc = await buildEmploymentReceiptDocument(model);
   const blob = await Packer.toBlob(doc);
   const stamp = `${String(model.period.year).slice(2)}.${String(model.period.month).padStart(2, '0')}`;
   const fileName = `[혁신][취업컨설팅] 강사비 영수증 (${stamp}).docx`;
