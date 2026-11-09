@@ -9,6 +9,12 @@ properties([
   ])
 ])
 
+// The optional gateway credential is required only after explicit enablement.
+def gatewayLines = readFile('deploy/jenkins/deploy.env').readLines().findAll { it.startsWith('GATEWAY_ENABLED=') }
+if (gatewayLines.size() > 1) error('GATEWAY_ENABLED must be specified at most once')
+def gatewayEnabled = gatewayLines ? gatewayLines[0].substring('GATEWAY_ENABLED='.length()).trim() : 'false'
+if (!['true', 'false'].contains(gatewayEnabled)) error('GATEWAY_ENABLED must be true or false')
+
 try {
   stage('Verify') {
     sh 'bash ./scripts/jenkins-deploy.sh verify'
@@ -33,7 +39,13 @@ try {
       withCredentials([
         file(credentialsId: 'consulting-manager-runtime-env', variable: 'RUNTIME_ENV')
       ]) {
-        sh 'bash ./scripts/jenkins-deploy.sh deploy'
+        if (gatewayEnabled == 'true') {
+          withCredentials([string(credentialsId: 'consulting-manager-gateway-hmac', variable: 'GATEWAY_HMAC_SECRET')]) {
+            sh 'bash ./scripts/jenkins-deploy.sh deploy'
+          }
+        } else {
+          sh 'bash ./scripts/jenkins-deploy.sh deploy'
+        }
       }
     }
     stage('Public API') {

@@ -11,6 +11,8 @@ export function loadConfig(env = process.env) {
   if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) {
     throw new Error('SESSION_SECRET은 32자 이상이어야 합니다.')
   }
+  const gatewayHmacSecret = env.GATEWAY_HMAC_SECRET || ''
+  if (gatewayHmacSecret && gatewayHmacSecret.length < 32) throw new Error('GATEWAY_HMAC_SECRET must contain at least 32 characters.')
   const port = Number(env.PORT || 3080)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT 값이 올바르지 않습니다.')
   return {
@@ -21,6 +23,7 @@ export function loadConfig(env = process.env) {
     appOrigin,
     allowedOrigins: origins,
     sessionSecret: env.SESSION_SECRET,
+    gatewayHmacSecret,
     cookieSecure: env.COOKIE_SECURE === 'true',
     trustProxy: !env.TRUST_PROXY || env.TRUST_PROXY === 'false' ? false : env.TRUST_PROXY === '1' ? 1 : env.TRUST_PROXY,
     sessionMaxAge: 12 * 60 * 60 * 1000,

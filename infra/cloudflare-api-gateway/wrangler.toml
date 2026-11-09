@@ -1,0 +1,4 @@
+name = "y2-consulting-api"
+main = "worker.mjs"
+compatibility_date = "2026-11-09"
+workers_dev = true

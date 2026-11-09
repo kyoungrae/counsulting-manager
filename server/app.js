@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { hashPassword, verifyPassword } from './password.js'
 import { createSessionStore } from './db.js'
+import { loginRateKey } from './gateway-rate.js'
 
 const cookieName = 'ewha_session'
 const dummyPasswordHash = await hashPassword(randomBytes(32).toString('hex'))
@@ -84,6 +85,7 @@ export function createApp({ db, sessionStore = createSessionStore(db), config })
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, limit: config.loginRateLimit ?? 10,
     standardHeaders: 'draft-8', legacyHeaders: false,
+    keyGenerator: req => loginRateKey(req, config.gatewayHmacSecret),
     handler: (req, res) => res.status(429).json({ error: { code: 'auth/too-many-requests', message: '로그인 시도가 많습니다. 잠시 후 다시 시도해주세요.' } }),
   })
   app.post('/api/auth/login', loginLimiter, async (req, res) => {

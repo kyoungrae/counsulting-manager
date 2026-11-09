@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { before, test } from 'node:test'
+import { createHmac } from 'node:crypto'
 import request from 'supertest'
 import { createApp } from '../app.js'
 import { hashPassword, verifyPassword } from '../password.js'
@@ -256,4 +257,37 @@ test('login attempts are rate limited', async () => {
   await login(agent, { userId: 'analysis', password: 'wrong-password' }).expect(401)
   await login(agent, { userId: 'analysis', password: 'wrong-password' }).expect(401)
   await login(agent, { userId: 'analysis', password: 'wrong-password' }).expect(429)
+})
+
+
+test('authenticated gateway clients have independent login limits', async () => {
+  const secret = 'gateway-integration-test-secret-at-least-32-bytes'
+  const { app } = fixture({ loginRateLimit: 2, gatewayHmacSecret: secret })
+  const sign = (ip) => {
+    const timestamp = String(Math.floor(Date.now() / 1000))
+    const signature = createHmac('sha256', secret).update(`ewh-gateway-v1\n${timestamp}\n${ip}`).digest('hex')
+    return { 'x-ewh-gateway-ip': ip, 'x-ewh-gateway-time': timestamp, 'x-ewh-gateway-signature': signature }
+  }
+  const attempt = (headers) => request(app).post('/api/auth/login').set('Origin', origin).set(headers).send({ userId: 'analysis', password: 'wrong-password' })
+  const first = sign('192.0.2.10')
+  await attempt(first).expect(401)
+  await attempt(first).expect(401)
+  await attempt(first).expect(429)
+  await attempt(sign('192.0.2.11')).expect(401)
+})
+
+
+test('login fails closed for invalid or unconfigured gateway signatures', async () => {
+  const secret = 'gateway-integration-test-secret-at-least-32-bytes'
+  const timestamp = String(Math.floor(Date.now() / 1000))
+  const ip = '192.0.2.12'
+  const signature = createHmac('sha256', secret).update(`ewh-gateway-v1\n${timestamp}\n${ip}`).digest('hex')
+  const fields = { 'x-ewh-gateway-ip': ip, 'x-ewh-gateway-time': timestamp, 'x-ewh-gateway-signature': signature }
+  const configured = fixture({ gatewayHmacSecret: secret })
+  const missing = fixture()
+  const attempt = (app, headers) => request(app).post('/api/auth/login').set('Origin', origin).set(headers).send({ userId: 'analysis', password: 'wrong-password' })
+  await attempt(configured.app, { ...fields, 'x-ewh-gateway-signature': '0'.repeat(64) }).expect(503)
+  await attempt(configured.app, { 'x-ewh-gateway-ip': ip }).expect(503)
+  await attempt(missing.app, fields).expect(503)
+  await attempt(missing.app, {}).expect(401)
 })

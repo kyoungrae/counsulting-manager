@@ -7,6 +7,21 @@ cd "$project_root"
 # shellcheck source=../deploy/jenkins/deploy.env
 source ./deploy/jenkins/deploy.env
 
+# Keep existing direct deployments independent of this optional secret.
+case "${GATEWAY_ENABLED:-false}" in
+  true)
+    if [[ "${1:-}" == deploy ]]; then
+      gateway_secret="${GATEWAY_HMAC_SECRET:-}"
+      [[ "${#gateway_secret}" -ge 32 ]] || { echo 'Configure the Jenkins gateway secret before deployment.' >&2; exit 1; }
+    else
+      GATEWAY_HMAC_SECRET=''
+    fi
+    ;;
+  false) GATEWAY_HMAC_SECRET='' ;;
+  *) echo 'GATEWAY_ENABLED must be true or false.' >&2; exit 1 ;;
+esac
+export GATEWAY_HMAC_SECRET
+
 commit=$(git rev-parse --verify HEAD)
 if [[ ! "$commit" =~ ^[a-f0-9]{40,64}$ ]]; then
   echo '배포할 Git 커밋을 확인할 수 없습니다.' >&2

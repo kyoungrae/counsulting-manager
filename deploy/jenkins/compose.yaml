@@ -36,6 +36,7 @@ services:
       MONGODB_URI: mongodb://consulting_app:${MONGO_APP_PASSWORD:?Runtime credential requires MONGO_APP_PASSWORD}@mongodb:27017/${MONGODB_DB:-consulting_manager}?authSource=${MONGODB_DB:-consulting_manager}
       MONGODB_DB: ${MONGODB_DB:-consulting_manager}
       SESSION_SECRET: ${SESSION_SECRET:?Runtime credential requires SESSION_SECRET}
+      GATEWAY_HMAC_SECRET: ${GATEWAY_HMAC_SECRET:-}
       APP_ORIGIN: ${APP_ORIGIN:?Runtime credential requires APP_ORIGIN}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://y2-consulting.firebaseapp.com}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
