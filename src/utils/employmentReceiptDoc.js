@@ -12,6 +12,7 @@ import {
   VerticalAlign,
   PageBreak,
   ImageRun,
+  HeightRule,
 } from 'docx';
 import { formatWon } from './employmentRateCatalog.js';
 import { findConsultantProfile } from './consultantProfiles.js';
@@ -20,11 +21,31 @@ import ewhaCdcLogoUrl from '../assets/ewha-cdc-logo.png';
 const FONT = '맑은 고딕';
 const thin = { style: BorderStyle.SINGLE, size: 8, color: '000000' };
 const borders = { top: thin, bottom: thin, left: thin, right: thin };
-const LABEL_W = 2400;
-const VALUE_W = 6800;
+
+/** A4 (twips). 여백을 좁혀 표가 페이지를 더 채우도록 맞춤 */
+const PAGE_W = 11906;
+const PAGE_H = 16838;
+const MARGIN = {
+  top: 720, // 0.5"
+  right: 720,
+  bottom: 720,
+  left: 720,
+};
+const CONTENT_W = PAGE_W - MARGIN.left - MARGIN.right; // 10466
+const LABEL_W = 2500;
+const VALUE_W = CONTENT_W - LABEL_W;
+const CELL_MARGINS = { top: 80, bottom: 80, left: 100, right: 100 };
+
+/** 행 최소 높이 — 짧은 행도 양식처럼 여백을 줄이고 표를 키움 */
+const ROW_H = {
+  default: 900,
+  days: 1400,
+  affiliation: 1200,
+  account: 1300,
+};
 
 /** 영수증 하단 인재개발원 로고 (원본 2275x345) */
-const LOGO_WIDTH_PX = 280;
+const LOGO_WIDTH_PX = 300;
 const LOGO_HEIGHT_PX = Math.round((LOGO_WIDTH_PX * 345) / 2275);
 
 async function loadEwhaCdcLogoBytes() {
@@ -68,6 +89,7 @@ function labelCell(text) {
     borders,
     width: { size: LABEL_W, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
+    margins: CELL_MARGINS,
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -85,7 +107,15 @@ function valueCell(textOrLines) {
     borders,
     width: { size: VALUE_W, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
+    margins: CELL_MARGINS,
     children: paras.length ? paras : [para('-', { size: 20 })],
+  });
+}
+
+function receiptRow(label, value, height = ROW_H.default) {
+  return new TableRow({
+    height: { value: height, rule: HeightRule.ATLEAST },
+    children: [labelCell(label), valueCell(value)],
   });
 }
 
@@ -195,24 +225,19 @@ function receiptTable(item) {
     : item.displayName;
 
   const rows = [
-    ['내용', item.contentLabel],
-    ['지급액', item.amountText],
-    ['강의일시', item.dayText],
-    ['장소', item.place],
-    ['성명 (고유번호)', nameWithCode],
-    ['생년월일', profile.birth || '-'],
-    ['핸드폰번호', profile.phone || '-'],
-    ['소속 및 주소', item.affiliationText || '-'],
-    ['통장번호', item.accountText || '-'],
-  ].map(
-    ([label, value]) =>
-      new TableRow({
-        children: [labelCell(label), valueCell(value)],
-      })
-  );
+    receiptRow('내용', item.contentLabel),
+    receiptRow('지급액', item.amountText),
+    receiptRow('강의일시', item.dayText, ROW_H.days),
+    receiptRow('장소', item.place),
+    receiptRow('성명 (고유번호)', nameWithCode),
+    receiptRow('생년월일', profile.birth || '-'),
+    receiptRow('핸드폰번호', profile.phone || '-'),
+    receiptRow('소속 및 주소', item.affiliationText || '-', ROW_H.affiliation),
+    receiptRow('통장번호', item.accountText || '-', ROW_H.account),
+  ];
 
   return new Table({
-    width: { size: LABEL_W + VALUE_W, type: WidthType.DXA },
+    width: { size: CONTENT_W, type: WidthType.DXA },
     columnWidths: [LABEL_W, VALUE_W],
     rows,
   });
@@ -225,8 +250,8 @@ function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = n
   }
 
   children.push(
-    para('[취업컨설팅]', { bold: true, size: 28, center: true, after: 60 }),
-    para('강사비 지급내역', { bold: true, size: 36, center: true, after: 240 }),
+    para('[취업컨설팅]', { bold: true, size: 28, center: true, after: 40 }),
+    para('강사비 지급내역', { bold: true, size: 36, center: true, after: 120 }),
     receiptTable(item)
   );
 
@@ -234,7 +259,7 @@ function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = n
     children.push(
       para('※ 강사 인적/계좌 정보가 등록되어 있지 않습니다. 프로필을 추가해 주세요.', {
         size: 16,
-        before: 120,
+        before: 80,
       })
     );
   }
@@ -243,7 +268,7 @@ function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = n
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 360, after: 40 },
+        spacing: { before: 200, after: 0 },
         children: [
           new ImageRun({
             type: 'png',
@@ -278,7 +303,8 @@ export async function buildEmploymentReceiptDocument(model) {
       {
         properties: {
           page: {
-            margin: { top: 1008, right: 1008, bottom: 1008, left: 1008 },
+            size: { width: PAGE_W, height: PAGE_H },
+            margin: MARGIN,
           },
         },
         children,

@@ -204,9 +204,12 @@
 
 .receipt-card {
     border: 1px solid #d1d5db;
-    border-radius: 10px;
+    border-radius: 8px;
     background: #fff;
-    padding: 14px 16px 16px;
+    padding: 10px 12px 12px;
+    max-width: 780px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 .receipt-card-kicker {
@@ -214,14 +217,14 @@
     font-weight: 700;
     color: #111;
     font-size: 1rem;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .receipt-card-title {
     text-align: center;
     font-weight: 700;
     color: #111;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     font-size: 1.25rem;
 }
 
@@ -234,13 +237,14 @@
 .receipt-table th,
 .receipt-table td {
     border: 1px solid #111;
-    padding: 10px 12px;
+    padding: 12px 14px;
     vertical-align: middle;
     font-size: 0.92rem;
+    min-height: 2.4rem;
 }
 
 .receipt-table th {
-    width: 150px;
+    width: 22%;
     background: #fff;
     color: #111;
     font-weight: 700;
@@ -260,12 +264,12 @@
 .receipt-footer-logo {
     display: flex;
     justify-content: center;
-    margin-top: 18px;
-    padding-top: 12px;
+    margin-top: 12px;
+    padding-top: 8px;
 }
 
 .receipt-footer-logo img {
-    width: min(280px, 70%);
+    width: min(300px, 72%);
     height: auto;
     object-fit: contain;
 }
