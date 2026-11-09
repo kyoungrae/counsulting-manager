@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { hashPassword, verifyPassword } from './password.js'
 import { createSessionStore } from './db.js'
 import { loginRateKey } from './gateway-rate.js'
+import { publicConsultant } from './consultants.js'
 
 const cookieName = 'ewha_session'
 const dummyPasswordHash = await hashPassword(randomBytes(32).toString('hex'))
@@ -81,6 +82,11 @@ export function createApp({ db, sessionStore = createSessionStore(db), config })
   })
   app.get('/api/auth/session', (req, res) => {
     res.json(req.account ? publicIdentity(req.account) : { user: null, profile: null })
+  })
+  app.get('/api/auth/consultants', async (req, res) => {
+    if (!req.account) return res.status(401).json({ error: { code: 'auth/required', message: '로그인이 필요합니다.' } })
+    const consultants = await db.collection('consultants').find({}).toArray()
+    res.json({ consultants: consultants.map(publicConsultant) })
   })
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, limit: config.loginRateLimit ?? 10,

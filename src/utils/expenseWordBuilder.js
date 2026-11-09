@@ -153,16 +153,35 @@ export function buildExpenseDocument({ budgetType, workbook }) {
   });
 }
 
-export async function downloadExpenseWord({ budgetType, workbook, employmentModel, careerModel }) {
+export async function downloadExpenseWord({
+  budgetType,
+  workbook,
+  employmentModel,
+  careerModel,
+  docKind = 'detail',
+  signal,
+}) {
   if (budgetType === 'employment') {
     if (!employmentModel) throw new Error('취업예산 분석 결과가 없습니다.');
+    if (docKind === 'receipt') {
+      const { downloadEmploymentReceiptWord } = await import('./employmentReceiptDoc.js');
+      signal?.throwIfAborted();
+      return downloadEmploymentReceiptWord(employmentModel, { signal });
+    }
     const { downloadEmploymentExpenseWord } = await import('./employmentExpenseDoc.js');
-    return downloadEmploymentExpenseWord(employmentModel);
+    signal?.throwIfAborted();
+    return downloadEmploymentExpenseWord(employmentModel, { signal });
   }
   if (budgetType === 'career') {
     if (!careerModel) throw new Error('진로예산 분석 결과가 없습니다.');
+    if (docKind === 'receipt') {
+      const { downloadCareerReceiptWord } = await import('./careerReceiptDoc.js');
+      signal?.throwIfAborted();
+      return downloadCareerReceiptWord(careerModel, { signal });
+    }
     const { downloadCareerExpenseWord } = await import('./careerExpenseDoc.js');
-    return downloadCareerExpenseWord(careerModel);
+    signal?.throwIfAborted();
+    return downloadCareerExpenseWord(careerModel, { signal });
   }
 
   const meta = BUDGET_TYPES[budgetType];
@@ -171,6 +190,7 @@ export async function downloadExpenseWord({ budgetType, workbook, employmentMode
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const fileName = `${meta.downloadPrefix}_${stamp}.docx`;
 
+  signal?.throwIfAborted();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

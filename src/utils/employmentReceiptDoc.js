@@ -1,0 +1,364 @@
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+  AlignmentType,
+  VerticalAlign,
+  PageBreak,
+  ImageRun,
+  HeightRule,
+} from 'docx';
+import { formatWon } from './employmentRateCatalog.js';
+import { findConsultantProfile } from './consultantProfiles.js';
+import ewhaCdcLogoUrl from '../assets/ewha-cdc-logo.png';
+
+const FONT = '맑은 고딕';
+const thin = { style: BorderStyle.SINGLE, size: 8, color: '000000' };
+const borders = { top: thin, bottom: thin, left: thin, right: thin };
+
+/** A4 (twips). 여백을 좁혀 표가 페이지를 더 채우도록 맞춤 */
+const PAGE_W = 11906;
+const PAGE_H = 16838;
+const MARGIN = {
+  top: 720, // 0.5"
+  right: 720,
+  bottom: 720,
+  left: 720,
+};
+const CONTENT_W = PAGE_W - MARGIN.left - MARGIN.right; // 10466
+const LABEL_W = 2500;
+const VALUE_W = CONTENT_W - LABEL_W;
+const CELL_MARGINS = { top: 80, bottom: 80, left: 100, right: 100 };
+/** 표 안 본문 글씨 12pt (docx half-points) */
+const CELL_FONT_SIZE = 24;
+
+/** 행 최소 높이 — 짧은 행도 양식처럼 여백을 줄이고 표를 키움 */
+const ROW_H = {
+  default: 900,
+  days: 1400,
+  affiliation: 1200,
+  account: 1300,
+};
+
+/** 영수증 하단 인재개발원 로고 (원본 2275x345) */
+const LOGO_WIDTH_PX = 300;
+const LOGO_HEIGHT_PX = Math.round((LOGO_WIDTH_PX * 345) / 2275);
+
+async function loadEwhaCdcLogoBytes() {
+  const res = await fetch(ewhaCdcLogoUrl);
+  if (!res.ok) throw new Error('인재개발원 로고 이미지를 불러오지 못했습니다.');
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+function textRun(text, opts = {}) {
+  const { bold = false, size = 20 } = opts;
+  return new TextRun({ text: String(text ?? ''), bold, size, font: FONT });
+}
+
+function para(text, opts = {}) {
+  const {
+    bold = false,
+    size = 20,
+    center = false,
+    after = 0,
+    before = 0,
+  } = opts;
+  return new Paragraph({
+    alignment: center ? AlignmentType.CENTER : AlignmentType.LEFT,
+    spacing: { before, after },
+    children: [textRun(text, { bold, size })],
+  });
+}
+
+function multilineParas(text, opts = {}) {
+  const lines = String(text ?? '').split('\n');
+  return lines.map((line, idx) =>
+    para(line, {
+      ...opts,
+      after: idx === lines.length - 1 ? (opts.after || 0) : 40,
+    })
+  );
+}
+
+function labelCell(text) {
+  return new TableCell({
+    borders,
+    width: { size: LABEL_W, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    margins: CELL_MARGINS,
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [textRun(text, { bold: true, size: CELL_FONT_SIZE })],
+      }),
+    ],
+  });
+}
+
+function valueCell(textOrLines) {
+  const paras = Array.isArray(textOrLines)
+    ? textOrLines
+    : multilineParas(textOrLines, { size: CELL_FONT_SIZE });
+  return new TableCell({
+    borders,
+    width: { size: VALUE_W, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    margins: CELL_MARGINS,
+    children: paras.length ? paras : [para('-', { size: CELL_FONT_SIZE })],
+  });
+}
+
+function receiptRow(label, value, height = ROW_H.default) {
+  return new TableRow({
+    height: { value: height, rule: HeightRule.ATLEAST },
+    children: [labelCell(label), valueCell(value)],
+  });
+}
+
+function formatDayLines(days) {
+  if (!days?.length) return '-';
+  return days
+    .map((d) => `${d.dayKey} - ${(d.times || []).join(', ')} (${d.count}세션)`)
+    .join('\n');
+}
+
+function formatAffiliation(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return '-';
+  if (raw.includes('\n')) return raw;
+  const idx = raw.indexOf(' / ');
+  if (idx > 0) {
+    return `${raw.slice(0, idx)}\n/ ${raw.slice(idx + 3)}`;
+  }
+  return raw;
+}
+
+function formatAmount(item) {
+  return `총 ${item.sessionCount}세션*세션당 ${formatWon(item.rate)}원 = ${formatWon(item.amount)}원`;
+}
+
+function formatAccount(profile, displayName) {
+  return [
+    `은행 명: ${profile?.bank || '-'}`,
+    `계좌번호: ${profile?.account || '-'}`,
+    `예금주: ${profile?.accountHolder || displayName || '-'}`,
+  ].join('\n');
+}
+
+/**
+ * 출석 집계 블록 → 영수증 미리보기용 항목
+ */
+export function buildEmploymentReceiptItems(model) {
+  const items = [];
+  const period = model?.period;
+
+  (model?.interviewBlocks || []).forEach((block) => {
+    const profile = findConsultantProfile(block.consultant || block.displayName);
+    const displayName = block.displayName || block.consultant;
+    items.push({
+      id: `interview-${block.consultant}`,
+      kind: '서류면접',
+      kicker: '[취업컨설팅]',
+      contentLabel: '취업컨설팅(서류면접)',
+      displayName,
+      sessionCount: block.sessionCount,
+      rate: block.rate,
+      amount: block.amount,
+      amountText: formatAmount({
+        sessionCount: block.sessionCount,
+        rate: block.rate,
+        amount: block.amount,
+      }),
+      days: block.days || [],
+      dayText: formatDayLines(block.days),
+      place: profile?.placeInterview || '온라인 ZOOM',
+      affiliationText: formatAffiliation(profile?.affiliation),
+      accountText: formatAccount(profile, displayName),
+      profile,
+      period,
+      missingProfile: !profile || !profile.code || !profile.birth || !profile.phone || !profile.bank || !profile.account,
+    });
+  });
+
+  const pushCorrection = (block, langLabel) => {
+    const profile = findConsultantProfile(block.consultant || block.displayName);
+    const displayName = block.displayName || block.consultant;
+    items.push({
+      id: `correction-${langLabel}-${block.consultant}`,
+      kind: '서면첨삭',
+      kicker: '[취업컨설팅]',
+      contentLabel: `취업컨설팅(서면첨삭·${langLabel})`,
+      displayName,
+      sessionCount: block.sessionCount,
+      rate: block.rate,
+      amount: block.amount,
+      amountText: formatAmount({
+        sessionCount: block.sessionCount,
+        rate: block.rate,
+        amount: block.amount,
+      }),
+      days: block.days || [],
+      dayText:
+        formatDayLines(block.days)
+        || `${period?.month || ''}/1~${period?.month || ''}/말 (온라인 접수)`,
+      place: profile?.placeCorrection || '온라인 접수',
+      affiliationText: formatAffiliation(profile?.affiliation),
+      accountText: formatAccount(profile, displayName),
+      profile,
+      period,
+      missingProfile: !profile || !profile.code || !profile.birth || !profile.phone || !profile.bank || !profile.account,
+    });
+  };
+
+  (model?.correctionBlocks?.korean || []).forEach((b) => pushCorrection(b, '국문'));
+  (model?.correctionBlocks?.english || []).forEach((b) => pushCorrection(b, '영문'));
+
+  return items;
+}
+
+function receiptTable(item) {
+  const profile = item.profile || {};
+  const nameWithCode = profile.code
+    ? `${item.displayName} (${profile.code})`
+    : item.displayName;
+
+  const rows = [
+    receiptRow('내용', item.contentLabel),
+    receiptRow('지급액', item.amountText),
+    receiptRow('강의일시', item.dayText, ROW_H.days),
+    receiptRow('장소', item.place),
+    receiptRow('성명 (고유번호)', nameWithCode),
+    receiptRow('생년월일', profile.birth || '-'),
+    receiptRow('핸드폰번호', profile.phone || '-'),
+    receiptRow('소속 및 주소', item.affiliationText || '-', ROW_H.affiliation),
+    receiptRow('통장번호', item.accountText || '-', ROW_H.account),
+  ];
+
+  return new Table({
+    width: { size: CONTENT_W, type: WidthType.DXA },
+    columnWidths: [LABEL_W, VALUE_W],
+    rows,
+  });
+}
+
+function buildReceiptPageChildren(
+  item,
+  { pageBreakBefore = false, logoBytes = null, kicker = '[취업컨설팅]' } = {}
+) {
+  const children = [];
+  if (pageBreakBefore) {
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+  }
+
+  children.push(
+    para(kicker, { bold: true, size: 28, center: true, after: 40 }),
+    para('강사비 지급내역', { bold: true, size: 36, center: true, after: 120 }),
+    receiptTable(item)
+  );
+
+  if (item.missingProfile) {
+    children.push(
+      para('※ 강사 인적/계좌 정보가 일부 등록되어 있지 않습니다. 프로필을 확인해 주세요.', {
+        size: 16,
+        before: 80,
+      })
+    );
+  }
+
+  if (logoBytes) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 0 },
+        children: [
+          new ImageRun({
+            type: 'png',
+            data: logoBytes,
+            transformation: { width: LOGO_WIDTH_PX, height: LOGO_HEIGHT_PX },
+            altText: {
+              title: '이화여자대학교 인재개발원',
+              description: 'EWHA CAREER DEVELOPMENT CENTER',
+              name: 'ewha-cdc-logo',
+            },
+          }),
+        ],
+      })
+    );
+  }
+
+  return children;
+}
+
+/**
+ * 공통 영수증 Document 생성 (취업/진로 공용)
+ */
+export async function buildConsultantReceiptDocument(items, { kicker = '[취업컨설팅]' } = {}) {
+  if (!items?.length) throw new Error('영수증으로 만들 강사 집계가 없습니다.');
+  const logoBytes = await loadEwhaCdcLogoBytes();
+
+  const children = [];
+  items.forEach((item, idx) => {
+    children.push(
+      ...buildReceiptPageChildren(item, {
+        pageBreakBefore: idx > 0,
+        logoBytes,
+        kicker,
+      })
+    );
+  });
+
+  return new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            size: { width: PAGE_W, height: PAGE_H },
+            margin: MARGIN,
+          },
+        },
+        children,
+      },
+    ],
+  });
+}
+
+export async function buildEmploymentReceiptDocument(model) {
+  return buildConsultantReceiptDocument(buildEmploymentReceiptItems(model), {
+    kicker: '[취업컨설팅]',
+  });
+}
+
+async function downloadReceiptBlob(doc, fileName, { signal } = {}) {
+  signal?.throwIfAborted();
+  const blob = await Packer.toBlob(doc);
+  signal?.throwIfAborted();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+  return fileName;
+}
+
+export async function downloadEmploymentReceiptWord(model, { signal } = {}) {
+  signal?.throwIfAborted();
+  const doc = await buildEmploymentReceiptDocument(model);
+  signal?.throwIfAborted();
+  const stamp = `${String(model.period.year).slice(2)}.${String(model.period.month).padStart(2, '0')}`;
+  return downloadReceiptBlob(doc, `[혁신][취업컨설팅] 강사비 영수증 (${stamp}).docx`, { signal });
+}
+
+export {
+  formatDayLines,
+  formatAffiliation,
+  formatAmount,
+  formatAccount,
+  downloadReceiptBlob,
+};

@@ -13,15 +13,17 @@
 }
 
 .expense-processing .expense-upload-section {
+    width: 100%;
     height: auto;
     min-height: 0;
-    max-width: 720px;
-    gap: 12px;
+    gap: 16px;
 }
 
 .expense-processing .expense-drop-zone {
-    min-height: 108px;
-    padding: 12px 14px;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 120px;
+    padding: 14px 16px;
     justify-content: center;
 }
 
@@ -191,4 +193,83 @@
 
 .expense-block li {
     margin: 2px 0;
+}
+
+.expense-receipt-preview {
+    padding: 16px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.receipt-card {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px 12px 12px;
+    max-width: 780px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.receipt-card-kicker {
+    text-align: center;
+    font-weight: 700;
+    color: #111;
+    font-size: 1rem;
+    margin-bottom: 2px;
+}
+
+.receipt-card-title {
+    text-align: center;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 10px;
+    font-size: 1.25rem;
+}
+
+.receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.receipt-table th,
+.receipt-table td {
+    border: 1px solid #111;
+    padding: 12px 14px;
+    vertical-align: middle;
+    font-size: 0.92rem;
+    min-height: 2.4rem;
+}
+
+.receipt-table th {
+    width: 22%;
+    background: #fff;
+    color: #111;
+    font-weight: 700;
+    text-align: center;
+}
+
+.receipt-multiline {
+    white-space: pre-line;
+}
+
+.receipt-missing {
+    margin-top: 8px;
+    color: #b45309;
+    font-size: 0.82rem;
+}
+
+.receipt-footer-logo {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+    padding-top: 8px;
+}
+
+.receipt-footer-logo img {
+    width: min(300px, 72%);
+    height: auto;
+    object-fit: contain;
 }

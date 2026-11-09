@@ -190,9 +190,11 @@ export function buildCareerExpenseDocument(model) {
   });
 }
 
-export async function downloadCareerExpenseWord(model) {
+export async function downloadCareerExpenseWord(model, { signal } = {}) {
+  signal?.throwIfAborted();
   const doc = buildCareerExpenseDocument(model);
   const blob = await Packer.toBlob(doc);
+  signal?.throwIfAborted();
   const stamp = `${String(model.period.year).slice(2)}.${String(model.period.month).padStart(2, '0')}`;
   const fileName = `[혁신][진로컨설팅] 지출결의 상세내용 (${stamp}).docx`;
   const url = URL.createObjectURL(blob);

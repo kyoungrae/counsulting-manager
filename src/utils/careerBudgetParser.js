@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { EMPLOYMENT_RATE_CATALOG } from './employmentRateCatalog.js';
+import { getEmploymentRateCatalog } from './employmentRateCatalog.js';
 import {
   buildConsultantBlocks,
   cellText,
@@ -187,7 +187,7 @@ export function parseCareerBudgetWorkbook(arrayBuffer, fileName = '') {
       });
     }
   }
-  for (const row of EMPLOYMENT_RATE_CATALOG.filter((r) => r.remark.includes('진로'))) {
+  for (const row of getEmploymentRateCatalog().filter((r) => r.remark.includes('진로'))) {
     const key = `${normalizeConsultantKey(row.name)}|${row.rate}`;
     if (!rateTableMap.has(key)) {
       rateTableMap.set(key, { name: row.name, rate: row.rate, remark: row.remark });

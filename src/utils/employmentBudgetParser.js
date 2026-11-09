@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import {
-  EMPLOYMENT_RATE_CATALOG,
+  getEmploymentRateCatalog,
   displayConsultantName,
   findCatalogEntries,
   normalizeConsultantKey,
@@ -342,7 +342,7 @@ function buildRateTable(interviewBlocks, correctionBlocks) {
 }
 
 function buildReferenceRateTable() {
-  return EMPLOYMENT_RATE_CATALOG.map((row) => ({
+  return getEmploymentRateCatalog().map((row) => ({
     name: row.name,
     rate: row.rate,
     remark: row.remark,

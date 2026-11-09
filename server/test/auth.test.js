@@ -24,8 +24,10 @@ function fixture(overrides = {}) {
     status: 'approved',
     internalNote: 'this must never reach the browser',
   }]
+  const consultants = [{ name: '테스트', aliases: ['테스트'], code: 'TEST', bank: '은행', account: '1234', privateField: 'never-return' }]
   const db = {
     collection(name) {
+      if (name === 'consultants') return { find: () => ({ toArray: async () => consultants }) }
       assert.equal(name, 'users')
       return {
         async findOne(filter) {
@@ -53,12 +55,27 @@ function fixture(overrides = {}) {
       ...overrides,
     },
   })
-  return { app, db, users, sessions, agent: request.agent(app) }
+  return { app, db, users, consultants, sessions, agent: request.agent(app) }
 }
 
 function login(agent, credentials = { userId: 'analysis', password }) {
   return agent.post('/api/auth/login').set('Origin', origin).send(credentials)
 }
+
+test('consultant data requires an approved live session and excludes internal fields', async () => {
+  const { app, agent, users } = fixture()
+  await request(app).get('/api/auth/consultants').expect(401)
+  const signedIn = await login(agent).expect(200)
+  const response = await request(app).get('/api/auth/consultants')
+    .set('Authorization', `Bearer ${signedIn.body.token}`).expect(200)
+  assert.equal(response.body.consultants[0].name, '테스트')
+  assert.equal(response.body.consultants[0].account, '1234')
+  assert.equal(response.body.consultants[0].privateField, undefined)
+  assert.equal(response.headers['cache-control'], 'no-store')
+  users[0].status = 'disabled'
+  await request(app).get('/api/auth/consultants')
+    .set('Authorization', `Bearer ${signedIn.body.token}`).expect(401)
+})
 
 test('passwords are salted hashes and incorrect or malformed hashes cannot authenticate', async () => {
   const anotherHash = await hashPassword(password)
