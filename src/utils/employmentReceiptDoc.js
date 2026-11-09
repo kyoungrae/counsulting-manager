@@ -162,6 +162,7 @@ export function buildEmploymentReceiptItems(model) {
     items.push({
       id: `interview-${block.consultant}`,
       kind: '서류면접',
+      kicker: '[취업컨설팅]',
       contentLabel: '취업컨설팅(서류면접)',
       displayName,
       sessionCount: block.sessionCount,
@@ -189,6 +190,7 @@ export function buildEmploymentReceiptItems(model) {
     items.push({
       id: `correction-${langLabel}-${block.consultant}`,
       kind: '서면첨삭',
+      kicker: '[취업컨설팅]',
       contentLabel: `취업컨설팅(서면첨삭·${langLabel})`,
       displayName,
       sessionCount: block.sessionCount,
@@ -243,14 +245,17 @@ function receiptTable(item) {
   });
 }
 
-function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = null } = {}) {
+function buildReceiptPageChildren(
+  item,
+  { pageBreakBefore = false, logoBytes = null, kicker = '[취업컨설팅]' } = {}
+) {
   const children = [];
   if (pageBreakBefore) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
   children.push(
-    para('[취업컨설팅]', { bold: true, size: 28, center: true, after: 40 }),
+    para(kicker, { bold: true, size: 28, center: true, after: 40 }),
     para('강사비 지급내역', { bold: true, size: 36, center: true, after: 120 }),
     receiptTable(item)
   );
@@ -288,14 +293,22 @@ function buildReceiptPageChildren(item, { pageBreakBefore = false, logoBytes = n
   return children;
 }
 
-export async function buildEmploymentReceiptDocument(model) {
-  const items = buildEmploymentReceiptItems(model);
-  if (!items.length) throw new Error('영수증으로 만들 강사 집계가 없습니다.');
+/**
+ * 공통 영수증 Document 생성 (취업/진로 공용)
+ */
+export async function buildConsultantReceiptDocument(items, { kicker = '[취업컨설팅]' } = {}) {
+  if (!items?.length) throw new Error('영수증으로 만들 강사 집계가 없습니다.');
   const logoBytes = await loadEwhaCdcLogoBytes();
 
   const children = [];
   items.forEach((item, idx) => {
-    children.push(...buildReceiptPageChildren(item, { pageBreakBefore: idx > 0, logoBytes }));
+    children.push(
+      ...buildReceiptPageChildren(item, {
+        pageBreakBefore: idx > 0,
+        logoBytes,
+        kicker,
+      })
+    );
   });
 
   return new Document({
@@ -313,11 +326,14 @@ export async function buildEmploymentReceiptDocument(model) {
   });
 }
 
-export async function downloadEmploymentReceiptWord(model) {
-  const doc = await buildEmploymentReceiptDocument(model);
+export async function buildEmploymentReceiptDocument(model) {
+  return buildConsultantReceiptDocument(buildEmploymentReceiptItems(model), {
+    kicker: '[취업컨설팅]',
+  });
+}
+
+async function downloadReceiptBlob(doc, fileName) {
   const blob = await Packer.toBlob(doc);
-  const stamp = `${String(model.period.year).slice(2)}.${String(model.period.month).padStart(2, '0')}`;
-  const fileName = `[혁신][취업컨설팅] 강사비 영수증 (${stamp}).docx`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -326,3 +342,17 @@ export async function downloadEmploymentReceiptWord(model) {
   URL.revokeObjectURL(url);
   return fileName;
 }
+
+export async function downloadEmploymentReceiptWord(model) {
+  const doc = await buildEmploymentReceiptDocument(model);
+  const stamp = `${String(model.period.year).slice(2)}.${String(model.period.month).padStart(2, '0')}`;
+  return downloadReceiptBlob(doc, `[혁신][취업컨설팅] 강사비 영수증 (${stamp}).docx`);
+}
+
+export {
+  formatDayLines,
+  formatAffiliation,
+  formatAmount,
+  formatAccount,
+  downloadReceiptBlob,
+};

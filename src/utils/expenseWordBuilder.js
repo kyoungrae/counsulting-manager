@@ -171,6 +171,10 @@ export async function downloadExpenseWord({
   }
   if (budgetType === 'career') {
     if (!careerModel) throw new Error('진로예산 분석 결과가 없습니다.');
+    if (docKind === 'receipt') {
+      const { downloadCareerReceiptWord } = await import('./careerReceiptDoc.js');
+      return downloadCareerReceiptWord(careerModel);
+    }
     const { downloadCareerExpenseWord } = await import('./careerExpenseDoc.js');
     return downloadCareerExpenseWord(careerModel);
   }

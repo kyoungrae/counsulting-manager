@@ -6,6 +6,7 @@ import { parseCareerBudgetFile } from '../utils/careerBudgetParser';
 import { BUDGET_TYPES, downloadExpenseWord } from '../utils/expenseWordBuilder';
 import { formatWon } from '../utils/employmentRateCatalog';
 import { buildEmploymentReceiptItems } from '../utils/employmentReceiptDoc';
+import { buildCareerReceiptItems } from '../utils/careerReceiptDoc';
 import ewhaCdcLogo from '../assets/ewha-cdc-logo.png';
 import './EwhaGrid.css';
 import './SatisfactionMatch.css';
@@ -37,8 +38,10 @@ const ExpenseProcessingView = () => {
     }, [currentWorkbook, activeSheet]);
 
     const receiptItems = useMemo(() => {
-        if (activeType !== 'employment' || !currentModel) return [];
-        return buildEmploymentReceiptItems(currentModel);
+        if (!currentModel) return [];
+        if (activeType === 'employment') return buildEmploymentReceiptItems(currentModel);
+        if (activeType === 'career') return buildCareerReceiptItems(currentModel);
+        return [];
     }, [activeType, currentModel]);
 
     const handleFile = async (file, budgetType) => {
@@ -70,10 +73,6 @@ const ExpenseProcessingView = () => {
         const model = models[budgetType];
         if (!workbook || !model) {
             setError(`${BUDGET_TYPES[budgetType].label} 엑셀을 먼저 업로드해 주세요.`);
-            return;
-        }
-        if (docKind === 'receipt' && budgetType !== 'employment') {
-            setError('영수증 다운로드는 현재 취업예산만 지원합니다.');
             return;
         }
         try {
@@ -224,17 +223,15 @@ const ExpenseProcessingView = () => {
                                 <Download size={16} />
                                 지출결의 상세(워드)
                             </button>
-                            {activeType === 'employment' && (
-                                <button
-                                    type="button"
-                                    className="download-btn"
-                                    disabled={!models.employment || isDownloading}
-                                    onClick={() => handleDownload('employment', 'receipt')}
-                                >
-                                    <Download size={16} />
-                                    영수증(워드)
-                                </button>
-                            )}
+                            <button
+                                type="button"
+                                className="download-btn"
+                                disabled={!models[activeType] || isDownloading}
+                                onClick={() => handleDownload(activeType, 'receipt')}
+                            >
+                                <Download size={16} />
+                                영수증(워드)
+                            </button>
                         </div>
                     </div>
 
@@ -248,20 +245,18 @@ const ExpenseProcessingView = () => {
                                 >
                                     지출결의 상세 미리보기
                                 </button>
-                                {activeType === 'employment' && (
-                                    <button
-                                        type="button"
-                                        className={`sheet-tab ${previewKind === 'receipt' ? 'active' : ''}`}
-                                        onClick={() => setPreviewKind('receipt')}
-                                    >
-                                        영수증 미리보기
-                                        <span className="sheet-meta">{receiptItems.length}장</span>
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    className={`sheet-tab ${previewKind === 'receipt' ? 'active' : ''}`}
+                                    onClick={() => setPreviewKind('receipt')}
+                                >
+                                    영수증 미리보기
+                                    <span className="sheet-meta">{receiptItems.length}장</span>
+                                </button>
                             </div>
 
                             {currentModel ? (
-                                previewKind === 'receipt' && activeType === 'employment' ? (
+                                previewKind === 'receipt' ? (
                                     <div className="table-container expense-receipt-preview">
                                         {receiptItems.length === 0 ? (
                                             <div className="empty-state">
@@ -271,7 +266,10 @@ const ExpenseProcessingView = () => {
                                         ) : (
                                             receiptItems.map((item) => (
                                                 <div key={item.id} className="receipt-card">
-                                                    <div className="receipt-card-kicker">[취업컨설팅]</div>
+                                                    <div className="receipt-card-kicker">
+                                                        {item.kicker
+                                                            || (activeType === 'career' ? '[진로컨설팅]' : '[취업컨설팅]')}
+                                                    </div>
                                                     <div className="receipt-card-title">강사비 지급내역</div>
                                                     <table className="receipt-table">
                                                         <tbody>
