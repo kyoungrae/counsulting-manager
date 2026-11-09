@@ -4,7 +4,7 @@
 
 ```text
 사용자 브라우저 → 기존 도메인(Firebase Hosting: 화면 파일만)
-               → MacBook Pro HTTPS API → Docker MongoDB
+               → Cloudflare Worker HTTPS API → Tailscale Funnel → MacBook Pro API → Docker MongoDB
 ```
 
 기존 Firebase 사용 범위는 로그인과 Firestore `users`였습니다. 이를 서버 인증으로 교체했으며 비밀번호는 scrypt 해시로 저장합니다. 분석용 엑셀은 기존처럼 브라우저에서 처리하며, 이번 변경으로 분석 파일·행 데이터가 DB에 자동 저장되지는 않습니다. 기존 `*.web.app` 주소를 유지하기 위해 Firebase Hosting만 남깁니다.
@@ -15,8 +15,9 @@
 | --- | --- |
 | 월간 컨설팅 화면 | [y2-consulting.web.app](https://y2-consulting.web.app) |
 | 같은 Hosting 사이트의 별칭 | [y2-consulting.firebaseapp.com](https://y2-consulting.firebaseapp.com) |
-| MacBook Pro 공개 API | `https://macbookpro.tailf007d9.ts.net/consulting-manager/api` |
-| API 상태 확인 | [공개 health endpoint](https://macbookpro.tailf007d9.ts.net/consulting-manager/api/health) |
+| 브라우저용 공개 API | `https://y2-consulting-api.myljk1025.workers.dev/api` |
+| API 상태 확인 | [공개 health endpoint](https://y2-consulting-api.myljk1025.workers.dev/api/health) |
+| Worker 상위 연결·롤백 API | `https://macbookpro.tailf007d9.ts.net/consulting-manager/api` |
 | Docker 앱 로컬 주소 | `http://127.0.0.1:3080` |
 
 Firebase 프로젝트는 `y2-consulting`입니다. 기존 참여자 분석 앱의 Funnel 루트 `http://127.0.0.1:8080`과 이 앱의 `/consulting-manager` 경로를 함께 유지합니다. MongoDB는 `consulting-manager` Compose 프로젝트의 별도 볼륨에 저장합니다.
@@ -39,7 +40,7 @@ Git main 체크아웃
 → Docker Node.js 22에서 테스트·린트·프런트엔드 빌드
 → 기존 DB 볼륨·운영 설정·Firebase 권한 확인
 → 검증한 커밋의 Docker 이미지 빌드 및 앱·MongoDB 컨테이너 갱신
-→ 앱 health와 기존 Funnel 경로의 공개 API·CORS 확인
+→ 앱 health와 Worker 경로의 공개 API·CORS 확인
 → Firebase Hosting y2-consulting 배포
 ```
 
@@ -52,6 +53,7 @@ Jenkins에서 사용하는 자격 증명은 다음과 같습니다. 아래 값�
 | `accountbook-github` | Git 저장소 체크아웃 |
 | `consulting-manager-runtime-env` | 운영 환경변수 Secret file: DB 비밀번호·세션 키·origin 설정 |
 | `firebase-consulting-deploy` | Firebase Hosting 배포 인증 Secret file |
+| `consulting-manager-gateway-hmac` | Worker와 서버의 클라이언트 IP 서명 검증을 위한 Secret text |
 
 `.env`, 서비스 계정 키, 사용자 이전 파일, DB 백업, Jenkins 비밀 파일은 Git에 올리지 않습니다. 배포 단계는 [Jenkinsfile](Jenkinsfile), [배포 스크립트](scripts/jenkins-deploy.sh), [공개 배포 설정](deploy/jenkins/deploy.env)에 정의되어 있습니다.
 
@@ -97,12 +99,14 @@ APP_ORIGIN=https://y2-consulting.web.app
 ALLOWED_ORIGINS=https://y2-consulting.firebaseapp.com
 COOKIE_SECURE=true
 TRUST_PROXY=1
-VITE_API_BASE_URL=https://macbookpro.tailf007d9.ts.net/consulting-manager/api
+VITE_API_BASE_URL=https://y2-consulting-api.myljk1025.workers.dev/api
 ```
 
 `APP_ORIGIN`과 `ALLOWED_ORIGINS`에는 origin만 넣고 경로를 붙이지 않습니다. 추가 origin은 쉼표로 구분합니다. API 주소의 `/api`까지 포함하며, 빌드할 때 정적 JavaScript에 반영됩니다. 비밀값이나 DB 연결 문자열은 `VITE_` 변수에 넣지 않습니다.
 
 브라우저는 서버가 검증하는 세션 토큰으로 로그인합니다. 토큰은 탭의 `sessionStorage`에 보관하며, 외부 API의 서드파티 쿠키가 차단되는 브라우저에서도 동작합니다. API는 허용한 origin만 CORS로 수락합니다. 같은 origin으로 제공되는 앱은 HttpOnly 쿠키도 사용할 수 있습니다.
+
+브라우저는 공개 Worker 주소로 접속하고, Worker만 Tailscale Funnel로 서버 요청을 중계합니다. Worker 무료 플랜의 사용량 제한을 확인하고, 유선망에서 Worker 주소가 허용되는지 확인합니다. Worker Secret `GATEWAY_HMAC_SECRET`과 Jenkins Secret text `consulting-manager-gateway-hmac`에는 동일한 32자 이상의 무작위 비밀값을 사용하며, 값은 Git이나 로그에 기록하지 않습니다. `GATEWAY_ENABLED=true`일 때 Jenkins가 이를 API에 전달합니다.
 
 Tailscale Funnel 또는 기존 HTTPS 프록시에서 **이 앱 전용 경로**를 `http://127.0.0.1:3080`으로 연결합니다. 이미 운영 중인 `consulting-participant-analysis`의 Funnel 루트와 경로를 덮어쓰지 않습니다. MacBook Pro와 Docker Desktop, Tailscale/Funnel이 실행 중이어야 외부 브라우저에서 로그인할 수 있습니다.
 
@@ -126,6 +130,8 @@ curl --fail https://macbookpro.tailf007d9.ts.net/consulting-manager/api/health
 docker compose up -d --build
 npm run deploy:hosting
 ```
+
+Worker 전환을 되돌려야 하면 `deploy/jenkins/deploy.env`의 `VITE_API_BASE_URL`, `PUBLIC_API_HEALTH_URL`, `PUBLIC_API_SESSION_URL`을 각각 기존 `https://macbookpro.tailf007d9.ts.net/consulting-manager/api` 및 그 `/health`, `/auth/session` 주소로 복구하고 Jenkins에서 다시 배포합니다. 기존 Funnel 경로는 Worker의 상위 연결이므로 삭제하거나 초기화하지 않습니다.
 
 Hosting 배포에는 Firebase CLI 인증이 필요하며 `.firebaserc`의 기본 프로젝트 `y2-consulting`을 사용합니다. `npm run deploy:hosting`은 기존 사이트에 정적 화면만 배포하므로 기존 배포 주소를 유지합니다. API의 로그인 → 새로고침 → 로그아웃을 외부 브라우저에서 확인한 뒤 전환을 완료합니다. 확인 전 기존 Firebase 데이터나 Hosting을 삭제하지 않습니다.
 
