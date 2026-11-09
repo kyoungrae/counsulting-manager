@@ -35,6 +35,8 @@ const CONTENT_W = PAGE_W - MARGIN.left - MARGIN.right; // 10466
 const LABEL_W = 2500;
 const VALUE_W = CONTENT_W - LABEL_W;
 const CELL_MARGINS = { top: 80, bottom: 80, left: 100, right: 100 };
+/** 표 안 본문 글씨 12pt (docx half-points) */
+const CELL_FONT_SIZE = 24;
 
 /** 행 최소 높이 — 짧은 행도 양식처럼 여백을 줄이고 표를 키움 */
 const ROW_H = {
@@ -93,7 +95,7 @@ function labelCell(text) {
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [textRun(text, { bold: true, size: 20 })],
+        children: [textRun(text, { bold: true, size: CELL_FONT_SIZE })],
       }),
     ],
   });
@@ -102,13 +104,13 @@ function labelCell(text) {
 function valueCell(textOrLines) {
   const paras = Array.isArray(textOrLines)
     ? textOrLines
-    : multilineParas(textOrLines, { size: 20 });
+    : multilineParas(textOrLines, { size: CELL_FONT_SIZE });
   return new TableCell({
     borders,
     width: { size: VALUE_W, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     margins: CELL_MARGINS,
-    children: paras.length ? paras : [para('-', { size: 20 })],
+    children: paras.length ? paras : [para('-', { size: CELL_FONT_SIZE })],
   });
 }
 
