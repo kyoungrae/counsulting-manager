@@ -7,6 +7,7 @@ import { BUDGET_TYPES, downloadExpenseWord } from '../utils/expenseWordBuilder';
 import { formatWon } from '../utils/employmentRateCatalog';
 import { clearConsultantMaster, setConsultantMaster } from '../utils/consultantMasterData';
 import { apiRequest } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { buildEmploymentReceiptItems } from '../utils/employmentReceiptDoc';
 import { buildCareerReceiptItems } from '../utils/careerReceiptDoc';
 import ewhaCdcLogo from '../assets/ewha-cdc-logo.png';
@@ -18,10 +19,12 @@ const ZONES = [BUDGET_TYPES.career, BUDGET_TYPES.employment];
 const emptyDrag = { career: false, employment: false };
 
 const ExpenseProcessingView = () => {
+    const { isAdmin } = useAuth();
     const inputRefs = {
         career: useRef(null),
         employment: useRef(null),
     };
+    const consultantImportRef = useRef(null);
     const [isDragging, setIsDragging] = useState(emptyDrag);
     const [workbooks, setWorkbooks] = useState({ career: null, employment: null });
     const [models, setModels] = useState({ career: null, employment: null });
@@ -32,6 +35,7 @@ const ExpenseProcessingView = () => {
     const [masterStatus, setMasterStatus] = useState('loading');
     const [masterError, setMasterError] = useState('');
     const [masterAttempt, setMasterAttempt] = useState(0);
+    const [isImportingConsultants, setIsImportingConsultants] = useState(false);
     const masterController = useRef(null);
     const downloadController = useRef(null);
     const fileRequests = useRef({ career: 0, employment: 0 });
@@ -159,6 +163,35 @@ const ExpenseProcessingView = () => {
         });
     };
 
+    const handleConsultantImport = async (file) => {
+        if (!file || !isAdmin || isImportingConsultants) return;
+        try {
+            setIsImportingConsultants(true);
+            setMasterError('');
+            const text = await file.text();
+            let parsed;
+            try {
+                parsed = JSON.parse(text);
+            } catch {
+                throw new Error('JSON 파일 형식이 올바르지 않습니다.');
+            }
+            const result = await apiRequest('/auth/consultants/import', {
+                method: 'POST',
+                body: parsed,
+            });
+            setMasterStatus('loading');
+            setMasterAttempt((attempt) => attempt + 1);
+            setError('');
+            window.alert(`상담사 ${result.imported}명을 등록했습니다.`);
+        } catch (err) {
+            setMasterError(err.message || '상담사 등록에 실패했습니다.');
+            setMasterStatus('error');
+        } finally {
+            setIsImportingConsultants(false);
+            if (consultantImportRef.current) consultantImportRef.current.value = '';
+        }
+    };
+
     const summaryLabel = activeType === 'employment' ? '취업예산' : '진로예산';
     const mainSectionTitle = currentModel?.mainSectionTitle
         || (activeType === 'employment' ? '[서류면접 컨설팅]' : '[진로개발 컨설팅]');
@@ -188,7 +221,38 @@ const ExpenseProcessingView = () => {
                         setMasterStatus('loading');
                         setMasterAttempt((attempt) => attempt + 1);
                     }}>다시 시도</button>
+                    {isAdmin && (
+                        <>
+                            <input
+                                ref={consultantImportRef}
+                                type="file"
+                                accept="application/json,.json"
+                                hidden
+                                onChange={(e) => handleConsultantImport(e.target.files?.[0])}
+                            />
+                            <button
+                                type="button"
+                                className="expense-import-btn"
+                                disabled={isImportingConsultants}
+                                onClick={() => consultantImportRef.current?.click()}
+                            >
+                                {isImportingConsultants ? '등록 중…' : '상담사 JSON 등록'}
+                            </button>
+                        </>
+                    )}
                 </div>
+            )}
+            {masterStatus === 'error' && isAdmin && (
+                <p className="expense-admin-hint">
+                    관리자만 최초 1회 등록할 수 있습니다. 운영 PC에서는
+                    {' '}
+                    <code>bash scripts/easy-import-consultants.sh</code>
+                    {' '}
+                    한 줄로도 등록할 수 있습니다.
+                </p>
+            )}
+            {masterStatus === 'error' && !isAdmin && (
+                <p className="expense-admin-hint">상담사 등록은 관리자에게 요청해 주세요.</p>
             )}
 
             <div className="upload-section expense-upload-section">

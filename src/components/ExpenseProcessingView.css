@@ -12,6 +12,35 @@
     font-size: 0.95rem;
 }
 
+.expense-import-btn {
+    margin-left: 8px;
+    border: 1px solid #00462a;
+    background: #00462a;
+    color: #fff;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.expense-import-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.expense-admin-hint {
+    margin: 0 0 10px;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.expense-admin-hint code {
+    font-size: 0.8rem;
+    background: #f3f4f6;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
 .expense-processing .expense-upload-section {
     width: 100%;
     height: auto;
