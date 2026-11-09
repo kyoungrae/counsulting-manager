@@ -58,10 +58,10 @@ export default function LoginPage() {
               <img src={ewhaLogo} alt="이화 로고" className="login-logo-img" />
             </div>
             <div className="login-logo-accent" />
-            <h1 className="login-title">이화 컨설팅 분석</h1>
+            <h1 className="login-title">월간 컨설팅 분석</h1>
             <p className="login-subtitle">
               <BarChart3 size={14} className="login-subtitle-icon" />
-              컨설팅 데이터 분석·통계
+              결과보고서 작성용
             </p>
           </div>
         </div>
