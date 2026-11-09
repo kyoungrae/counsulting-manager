@@ -1,10 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 로그인 시 아이디로 사용자 조회해야 해서 읽기 허용 (내부 앱 전용)
+    // 본인 프로필만 읽기. 쓰기(역할/승인 포함)는 Admin SDK·콘솔만.
+    // password 필드는 저장하지 마세요. 인증은 Firebase Auth만 사용합니다.
     match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
     }
   }
 }
