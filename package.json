@@ -21,6 +21,8 @@
     "start": "node --env-file-if-exists=.env server/index.js",
     "test": "node --test server/test/*.test.js",
     "import:users": "node --env-file-if-exists=.env scripts/import-users.js",
+    "import:consultants": "bash scripts/easy-import-consultants.sh",
+    "extract:consultants": "node scripts/extract-consultants.js",
     "deploy": "docker compose up -d --build",
     "deploy:hosting": "npm run build && firebase deploy --only hosting"
   },
