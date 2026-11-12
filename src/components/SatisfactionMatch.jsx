@@ -3,6 +3,7 @@ import { Upload, FileText, CheckCircle, XCircle, AlertTriangle, Download, Rotate
 import * as XLSX from 'xlsx';
 import * as XLSXStyle from 'xlsx-js-style';
 import './SatisfactionMatch.css';
+import './EwhaGrid.css';
 import { buildBestPairMap, scoreRefAgainstResponse } from '../utils/satisfactionMatchPairing';
 
 /** 기준데이터 엑셀 헤더 → 내부 논리 필드 매핑용 별칭 (순서: 정확 일치 우선, includes 보조) */
@@ -1014,6 +1015,9 @@ const SatisfactionMatch = () => {
 
     return (
         <div className="satisfaction-match-container">
+            <div className="ewha-header">
+                <h1>만족도 검증</h1>
+            </div>
             <div className="upload-section">
                 <div
                     className={`drop-zone ${isDraggingRef ? 'drag-active' : ''}`}

@@ -1,15 +1,8 @@
-.expense-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 4px;
-}
-
 .expense-processing .expense-lead {
     margin: 0 0 8px;
     color: #666;
     font-size: 0.95rem;
+    text-align: center;
 }
 
 .expense-import-btn {

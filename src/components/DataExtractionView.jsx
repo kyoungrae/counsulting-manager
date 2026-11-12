@@ -10,6 +10,7 @@ import {
     COLLEGE_ORDER
 } from '../utils/reportDataNormalizer';
 import './SatisfactionMatch.css';
+import './EwhaGrid.css';
 
 const UPPER_OPTIONS = ['진로개발', '서류면접', '서면첨삭'];
 
@@ -1457,6 +1458,9 @@ const DataExtractionView = () => {
 
     return (
         <div className="satisfaction-match-container">
+            <div className="ewha-header">
+                <h1>결과보고서</h1>
+            </div>
             <div className="upload-section">
                 {UPLOAD_ZONES.map((zone) => (
                     <div
