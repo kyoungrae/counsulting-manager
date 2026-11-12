@@ -1026,7 +1026,7 @@ const SatisfactionMatch = () => {
     );
 
     const getStatusLabel = (status) => {
-        const map = { MATCH: '일치', PARTIAL_MISMATCH: '일부 불일치', DUPLICATE: '중복의심', DUPLICATE_RESPONSE: '중복응답', NOT_IN_REF: '기준데이터 엑셀에 없음' };
+        const map = { MATCH: '일치', PARTIAL_MISMATCH: '부분', DUPLICATE: '중복의심', DUPLICATE_RESPONSE: '중복응답', NOT_IN_REF: '기준데이터 엑셀에 없음' };
         return map[status] || status;
     };
 
@@ -1096,7 +1096,7 @@ const SatisfactionMatch = () => {
                                 {[
                                     { key: 'all', label: '전체', count: comparisonData.length },
                                     { key: 'match', label: '일치', count: comparisonData.filter((d) => d.status === 'MATCH').length },
-                                    { key: 'partial', label: '일부 불일치', count: comparisonData.filter((d) => d.status === 'PARTIAL_MISMATCH').length },
+                                    { key: 'partial', label: '부분', count: comparisonData.filter((d) => d.status === 'PARTIAL_MISMATCH').length },
                                     { key: 'duplicate', label: '중복의심', count: comparisonData.filter((d) => d.status === 'DUPLICATE').length },
                                     { key: 'duplicate_response', label: '중복응답', count: comparisonData.filter((d) => d.status === 'DUPLICATE_RESPONSE').length },
                                     { key: 'not_in_ref', label: '기준데이터에없음', count: comparisonData.filter((d) => d.status === 'NOT_IN_REF').length },
