@@ -19,7 +19,7 @@
     "seed:user": "node --env-file-if-exists=.env scripts/seed-user.js",
     "dev:server": "node --env-file-if-exists=.env --watch server/index.js",
     "start": "node --env-file-if-exists=.env server/index.js",
-    "test": "node --test server/test/*.test.js",
+    "test": "node --test server/test/*.test.js scripts/satisfaction-pairing.test.mjs",
     "import:users": "node --env-file-if-exists=.env scripts/import-users.js",
     "import:consultants": "bash scripts/easy-import-consultants.sh",
     "extract:consultants": "node scripts/extract-consultants.js",

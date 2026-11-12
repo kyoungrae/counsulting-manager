@@ -3,6 +3,7 @@ import { Upload, FileText, CheckCircle, XCircle, AlertTriangle, Download, Rotate
 import * as XLSX from 'xlsx';
 import * as XLSXStyle from 'xlsx-js-style';
 import './SatisfactionMatch.css';
+import { buildBestPairMap, scoreRefAgainstResponse } from '../utils/satisfactionMatchPairing';
 
 /** 기준데이터 엑셀 헤더 → 내부 논리 필드 매핑용 별칭 (순서: 정확 일치 우선, includes 보조) */
 const REFERENCE_FIELD_ALIASES = {
@@ -503,17 +504,6 @@ const SatisfactionMatch = () => {
         return isWrittenCorrection ? formatted.split(' ')[0] : formatted;
     };
 
-    const toSortableDateValue = (dateTimeLike) => {
-        const formatted = formatDateTime(dateTimeLike || '');
-        if (!formatted) return Number.POSITIVE_INFINITY;
-        const [datePart, timePart = '00:00'] = formatted.split(' ');
-        const [yyyy, mm, dd] = datePart.split('.').map(Number);
-        const [hh, mi] = timePart.split(':').map(Number);
-        const dt = new Date(yyyy, (mm || 1) - 1, dd || 1, hh || 0, mi || 0);
-        const t = dt.getTime();
-        return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
-    };
-
     const compareFiles = async (refFile, studFile) => {
         try {
             const [refResult, studResult] = await Promise.all([
@@ -618,29 +608,24 @@ const SatisfactionMatch = () => {
                 studMapByPersonKey.get(key).push(stud);
             });
 
+            const pairingChecks = {
+                checkNameMatch,
+                normalizeName,
+                checkTypeMatch,
+                checkDateTimeMatch,
+                normalizeCounselorName,
+                checkDepartmentMatch,
+            };
+            const scorePair = (refRecord, studResp) =>
+                scoreRefAgainstResponse(refRecord, studResp, pairingChecks);
+
             // 응답데이터 기준으로 비교 (응답자 중심 대조)
             const results = [];
             studMapByPersonKey.forEach((studResponses, personKey) => {
                 const studentId = personKey.split('::')[0];
                 const refRecords = refMapByPersonKey.get(personKey) || refMapByStudentId.get(studentId) || [];
                 const usedRefIds = new Set();
-                const orderedPairMap = new Map();
-
-                // 동일 인물 다건 비교: 상담분류 우선 + 날짜 오름차순 1:1 대응
-                if (refRecords.length > 1 && studResponses.length > 1) {
-                    const sortedRefs = [...refRecords].sort((a, b) => toSortableDateValue(a.dateTime) - toSortableDateValue(b.dateTime));
-                    const sortedStuds = [...studResponses].sort((a, b) => toSortableDateValue(a.dateTime) - toSortableDateValue(b.dateTime));
-                    const pairedRefIds = new Set();
-                    sortedStuds.forEach((stud) => {
-                        const availableRefs = sortedRefs.filter((ref) => !pairedRefIds.has(ref.id));
-                        if (availableRefs.length === 0) return;
-                        const typedRefs = availableRefs.filter((ref) => checkTypeMatch(ref.type, stud.type));
-                        const pool = typedRefs.length > 0 ? typedRefs : availableRefs;
-                        const chosen = pool[0];
-                        orderedPairMap.set(stud, chosen);
-                        pairedRefIds.add(chosen.id);
-                    });
-                }
+                const bestPairMap = buildBestPairMap(refRecords, studResponses, scorePair);
 
                 // 같은 일정(날짜+시간)에 2회 이상 응답 여부 감지
                 const dateTimeCounts = new Map();
@@ -649,57 +634,21 @@ const SatisfactionMatch = () => {
                     dateTimeCounts.set(dtKey, (dateTimeCounts.get(dtKey) || 0) + 1);
                 });
 
-                // 각 응답에 대해 가장 일치율이 높은 기준데이터 건과 매칭
-                studResponses.forEach(studResp => {
-                    let bestMatch = orderedPairMap.get(studResp) || null;
-                    let bestMatchScore = bestMatch ? Number.MAX_SAFE_INTEGER : -1;
-                    const candidateRefRecords = refRecords.filter(refRecord => !usedRefIds.has(refRecord.id));
-                    const recordsToCompare = candidateRefRecords.length > 0 ? candidateRefRecords : refRecords;
-                    // 1:N(응답 1건, 기준 다건 포함)에서 상담분류 일치 후보가 있으면 그 후보군만 비교
-                    const typeMatchedRecords = recordsToCompare.filter(refRecord => checkTypeMatch(refRecord.type, studResp.type));
-                    const prioritizedRecords = typeMatchedRecords.length > 0 ? typeMatchedRecords : recordsToCompare;
-
-                    prioritizedRecords.forEach(refRecord => {
-                        // 날짜순 강제 페어가 있으면 그 기준 레코드만 사용
-                        if (bestMatch && refRecord.id !== bestMatch.id) return;
-                        let score = 0;
-
-                        // 이름 비교 (기준 vs 응답)
-                        const refNameNorm = normalizeName(refRecord.name);
-                        const studNameNorm = normalizeName(studResp.name);
-
-                        let nameMatch = false;
-                        if (checkNameMatch(refNameNorm, studNameNorm)) {
-                            score += 1;
-                            nameMatch = true;
-                        }
-
-                        // 상담분류 비교
-                        if (checkTypeMatch(refRecord.type, studResp.type)) {
-                            score += 3;
-                        }
-
-                        // 상담일자 비교 (기준 컨설팅일자 vs 응답 일정+시간)
-                        if (checkDateTimeMatch(refRecord.dateTime, studResp.schedule, studResp.time, studResp.type)) {
-                            score += 3;
-                        }
-
-                        // 상담사 비교
-                        const refCounselorNorm = normalizeCounselorName(refRecord.counselor);
-                        const studCounselorNorm = normalizeCounselorName(studResp.counselor);
-                        if (refCounselorNorm && studCounselorNorm && refCounselorNorm === studCounselorNorm) {
-                            score += 2;
-                        }
-
-                        // 학과 비교
-                        const deptResult = checkDepartmentMatch(refRecord.department, studResp.department);
-                        if (deptResult.match) score += 1;
-
-                        if (score > bestMatchScore) {
-                            bestMatchScore = score;
-                            bestMatch = refRecord;
-                        }
-                    });
+                // 각 응답에 대해 일자·상담사 우선 점수로 잡은 기준 건과 매칭
+                studResponses.forEach((studResp, studIdx) => {
+                    let bestMatch = bestPairMap.get(studIdx) || null;
+                    if (!bestMatch) {
+                        let bestMatchScore = -1;
+                        const candidateRefRecords = refRecords.filter((refRecord) => !usedRefIds.has(refRecord.id));
+                        const recordsToCompare = candidateRefRecords.length > 0 ? candidateRefRecords : refRecords;
+                        recordsToCompare.forEach((refRecord) => {
+                            const score = scorePair(refRecord, studResp);
+                            if (score > bestMatchScore) {
+                                bestMatchScore = score;
+                                bestMatch = refRecord;
+                            }
+                        });
+                    }
                     if (bestMatch) {
                         usedRefIds.add(bestMatch.id);
                     }
