@@ -240,7 +240,7 @@
     font-weight: 500;
     padding: 0.4rem 1rem;
     text-align: center;
-    font-family: var(--font-serif);
+    font-family: var(--font-header);
 }
 
 .stats-grid-row {
@@ -275,7 +275,7 @@
     font-weight: 500;
     padding: 0.4rem 1rem;
     text-align: center;
-    font-family: var(--font-serif);
+    font-family: var(--font-header);
     margin-top: 2rem;
     /* Spacing from previous table */
 }
@@ -312,7 +312,7 @@
     font-weight: 500;
     padding: 0.4rem 1rem;
     text-align: center;
-    font-family: var(--font-serif);
+    font-family: var(--font-header);
     margin-top: 2rem;
 }
 
@@ -413,7 +413,7 @@
 
 .grid-header span {
     text-align: center;
-    font-family: var(--font-serif);
+    font-family: var(--font-header);
     letter-spacing: 0.05em;
     display: flex;
     justify-content: center;
@@ -754,6 +754,7 @@
     color: white;
     font-weight: 500;
     white-space: nowrap;
+    font-family: var(--font-header);
 }
 
 .pre-survey-table thead tr:first-child th {
