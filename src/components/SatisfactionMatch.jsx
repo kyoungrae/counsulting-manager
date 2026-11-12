@@ -1092,7 +1092,7 @@ const SatisfactionMatch = () => {
                     <h2 className="results-title">대조 결과 (기준: 학번)</h2>
                     {comparisonData.length > 0 && (
                         <div className="stats-summary">
-                            <div className="stats-filter-grid" role="group" aria-label="결과 필터">
+                            <div className="stats-filter-text" role="group" aria-label="결과 필터">
                                 {[
                                     { key: 'all', label: '전체', count: comparisonData.length },
                                     { key: 'match', label: '일치', count: comparisonData.filter((d) => d.status === 'MATCH').length },
@@ -1101,16 +1101,18 @@ const SatisfactionMatch = () => {
                                     { key: 'duplicate_response', label: '중복응답', count: comparisonData.filter((d) => d.status === 'DUPLICATE_RESPONSE').length },
                                     { key: 'not_in_ref', label: '기준데이터에없음', count: comparisonData.filter((d) => d.status === 'NOT_IN_REF').length },
                                 ].map((item) => (
-                                    <button
-                                        key={item.key}
-                                        type="button"
-                                        className={`stat-filter-cell ${statusFilter === item.key ? 'active' : ''}`}
-                                        onClick={() => handleFilterChange(item.key)}
-                                        aria-pressed={statusFilter === item.key}
-                                    >
-                                        <span className="stat-filter-label">{item.label}</span>
-                                        <strong className="stat-filter-count">{item.count}</strong>
-                                    </button>
+                                    <span key={item.key} className={`stat-item ${statusFilter === item.key ? 'active' : ''}`}>
+                                        {item.label}:{' '}
+                                        <button
+                                            type="button"
+                                            className="stat-count-btn"
+                                            onClick={() => handleFilterChange(item.key)}
+                                            aria-pressed={statusFilter === item.key}
+                                            title={`${item.label}만 보기`}
+                                        >
+                                            {item.count}
+                                        </button>
+                                    </span>
                                 ))}
                             </div>
                             <button className="reset-btn" onClick={handleReset}>
