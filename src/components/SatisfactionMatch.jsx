@@ -366,12 +366,13 @@ const SatisfactionMatch = () => {
         return normalizeStudentId(id1) === normalizeStudentId(id2);
     };
 
-    // 학과 유사 매칭: "경영학부" vs "경영", "커뮤니케이션 미디어" vs "커뮤니케이션·미디어학부" → 일치(유사)
+    // 학과 정규화: 공백/가운뎃점(·)/하이픈·학부·학과·전공 표기 차이를 무시
+    // 예) "커뮤니케이션 미디어학부" == "커뮤니케이션·미디어학부" → 완전 일치
     const normalizeDepartment = (dept) => {
         if (!dept) return '';
         return String(dept)
             .replace(/학부|학과|전공/g, '')
-            .replace(/[\s·\-]/g, '')
+            .replace(/[\s·・•‧․\-_/]/g, '')
             .trim();
     };
 
@@ -381,11 +382,14 @@ const SatisfactionMatch = () => {
         const d1 = String(dept1).trim();
         const d2 = String(dept2).trim();
         if (d1 === d2) return { match: true, similar: false };
-        if (d1.includes(d2) || d2.includes(d1)) return { match: true, similar: true };
-        // 정규화 후 비교: "커뮤니케이션 미디어" vs "커뮤니케이션·미디어학부" → 일치(유사)
+
         const n1 = normalizeDepartment(d1);
         const n2 = normalizeDepartment(d2);
-        if (n1 && n2 && (n1 === n2 || n1.includes(n2) || n2.includes(n1))) return { match: true, similar: true };
+        // 정규화 결과가 같으면 표기만 다른 동일 학과 → 완전 일치
+        if (n1 && n2 && n1 === n2) return { match: true, similar: false };
+        // 한쪽이 다른 쪽을 포함하면 유사 일치 (예: "경영" vs "경영경제")
+        if (d1.includes(d2) || d2.includes(d1)) return { match: true, similar: true };
+        if (n1 && n2 && (n1.includes(n2) || n2.includes(n1))) return { match: true, similar: true };
         return { match: false, similar: false };
     };
 
@@ -1001,12 +1005,25 @@ const SatisfactionMatch = () => {
     const getFilteredData = () => {
         const sortedData = getSortedData();
         if (statusFilter === 'all') return sortedData;
-        if (statusFilter === 'match') return sortedData.filter(row => row.status === 'MATCH');
-        if (statusFilter === 'partial') return sortedData.filter(row => row.status === 'PARTIAL_MISMATCH');
-        if (statusFilter === 'duplicate') return sortedData.filter(row => row.status === 'DUPLICATE' || row.status === 'DUPLICATE_RESPONSE');
-        if (statusFilter === 'not_in_ref') return sortedData.filter(row => row.status === 'NOT_IN_REF');
+        if (statusFilter === 'match') return sortedData.filter((row) => row.status === 'MATCH');
+        if (statusFilter === 'partial') return sortedData.filter((row) => row.status === 'PARTIAL_MISMATCH');
+        if (statusFilter === 'duplicate') return sortedData.filter((row) => row.status === 'DUPLICATE');
+        if (statusFilter === 'duplicate_response') return sortedData.filter((row) => row.status === 'DUPLICATE_RESPONSE');
+        if (statusFilter === 'not_in_ref') return sortedData.filter((row) => row.status === 'NOT_IN_REF');
         return sortedData;
     };
+
+    const renderHeaderLabel = (title, subLabel, sortKey) => (
+        <span className="th-label">
+            <span className="th-label-main">
+                {title}
+                {sortKey && sortConfig.key === sortKey && (
+                    sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                )}
+            </span>
+            {subLabel && <span className="th-label-sub">{subLabel}</span>}
+        </span>
+    );
 
     const getStatusLabel = (status) => {
         const map = { MATCH: '일치', PARTIAL_MISMATCH: '일부 불일치', DUPLICATE: '중복의심', DUPLICATE_RESPONSE: '중복응답', NOT_IN_REF: '기준데이터 엑셀에 없음' };
@@ -1075,33 +1092,26 @@ const SatisfactionMatch = () => {
                     <h2 className="results-title">대조 결과 (기준: 학번)</h2>
                     {comparisonData.length > 0 && (
                         <div className="stats-summary">
-                            <span className="stat-item">전체: <strong>{comparisonData.length}</strong></span>
-                            <span className="stat-item">일치: <strong>{comparisonData.filter(d => d.status === 'MATCH').length}</strong></span>
-                            <span className="stat-item">일부 불일치: <strong>{comparisonData.filter(d => d.status === 'PARTIAL_MISMATCH').length}</strong></span>
-                            <span className="stat-item">중복의심: <strong>{comparisonData.filter(d => d.status === 'DUPLICATE').length}</strong></span>
-                            <span className="stat-item">중복응답: <strong>{comparisonData.filter(d => d.status === 'DUPLICATE_RESPONSE').length}</strong></span>
-                            <span className="stat-item">기준데이터에없음: <strong>{comparisonData.filter(d => d.status === 'NOT_IN_REF').length}</strong></span>
-                            <div className="filter-checkboxes">
-                                <label className="filter-checkbox">
-                                    <input type="radio" name="statusFilter" checked={statusFilter === 'all'} onChange={() => handleFilterChange('all')} />
-                                    전체
-                                </label>
-                                <label className="filter-checkbox">
-                                    <input type="radio" name="statusFilter" checked={statusFilter === 'match'} onChange={() => handleFilterChange('match')} />
-                                    일치
-                                </label>
-                                <label className="filter-checkbox">
-                                    <input type="radio" name="statusFilter" checked={statusFilter === 'partial'} onChange={() => handleFilterChange('partial')} />
-                                    일부 불일치
-                                </label>
-                                <label className="filter-checkbox">
-                                    <input type="radio" name="statusFilter" checked={statusFilter === 'duplicate'} onChange={() => handleFilterChange('duplicate')} />
-                                    중복의심/중복응답
-                                </label>
-                                <label className="filter-checkbox">
-                                    <input type="radio" name="statusFilter" checked={statusFilter === 'not_in_ref'} onChange={() => handleFilterChange('not_in_ref')} />
-                                    기준데이터 엑셀에 없음
-                                </label>
+                            <div className="stats-filter-grid" role="group" aria-label="결과 필터">
+                                {[
+                                    { key: 'all', label: '전체', count: comparisonData.length },
+                                    { key: 'match', label: '일치', count: comparisonData.filter((d) => d.status === 'MATCH').length },
+                                    { key: 'partial', label: '일부 불일치', count: comparisonData.filter((d) => d.status === 'PARTIAL_MISMATCH').length },
+                                    { key: 'duplicate', label: '중복의심', count: comparisonData.filter((d) => d.status === 'DUPLICATE').length },
+                                    { key: 'duplicate_response', label: '중복응답', count: comparisonData.filter((d) => d.status === 'DUPLICATE_RESPONSE').length },
+                                    { key: 'not_in_ref', label: '기준데이터에없음', count: comparisonData.filter((d) => d.status === 'NOT_IN_REF').length },
+                                ].map((item) => (
+                                    <button
+                                        key={item.key}
+                                        type="button"
+                                        className={`stat-filter-cell ${statusFilter === item.key ? 'active' : ''}`}
+                                        onClick={() => handleFilterChange(item.key)}
+                                        aria-pressed={statusFilter === item.key}
+                                    >
+                                        <span className="stat-filter-label">{item.label}</span>
+                                        <strong className="stat-filter-count">{item.count}</strong>
+                                    </button>
+                                ))}
                             </div>
                             <button className="reset-btn" onClick={handleReset}>
                                 <RotateCcw size={18} />
@@ -1120,44 +1130,26 @@ const SatisfactionMatch = () => {
                         <table className="comparison-table">
                             <thead>
                                 <tr>
-                                    <th>순번</th>
+                                    <th>{renderHeaderLabel('순번')}</th>
                                     <th className="sortable" onClick={() => handleSort('status')}>
-                                        상태
-                                        {sortConfig.key === 'status' && (
-                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                                        )}
+                                        {renderHeaderLabel('상태', null, 'status')}
                                     </th>
-                                    <th>불일치 항목</th>
+                                    <th>{renderHeaderLabel('불일치 항목')}</th>
                                     <th className="sortable" onClick={() => handleSort('name')}>
-                                        이름 (실제/응답)
-                                        {sortConfig.key === 'name' && (
-                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                                        )}
+                                        {renderHeaderLabel('이름', '(실제/응답)', 'name')}
                                     </th>
                                     <th className="sortable" onClick={() => handleSort('studentId')}>
-                                        학번
-                                        {sortConfig.key === 'studentId' && (
-                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                                        )}
+                                        {renderHeaderLabel('학번', null, 'studentId')}
                                     </th>
-                                    <th>학과 (실제/응답)</th>
+                                    <th>{renderHeaderLabel('학과', '(실제/응답)')}</th>
                                     <th className="sortable" onClick={() => handleSort('type')}>
-                                        상담분류 (실제/응답)
-                                        {sortConfig.key === 'type' && (
-                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                                        )}
+                                        {renderHeaderLabel('상담분류', '(실제/응답)', 'type')}
                                     </th>
                                     <th className="sortable" onClick={() => handleSort('date')}>
-                                        상담일자 (실제/응답)
-                                        {sortConfig.key === 'date' && (
-                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                                        )}
+                                        {renderHeaderLabel('상담일자', '(실제/응답)', 'date')}
                                     </th>
                                     <th className="sortable" onClick={() => handleSort('counselor')}>
-                                        상담사 (실제/응답)
-                                        {sortConfig.key === 'counselor' && (
-                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                                        )}
+                                        {renderHeaderLabel('상담사', '(실제/응답)', 'counselor')}
                                     </th>
                                 </tr>
                             </thead>
