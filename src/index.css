@@ -10,6 +10,8 @@
 
   --font-sans: 'Nanum Gothic', sans-serif;
   --font-serif: 'Nanum Gothic', sans-serif;
+  /* 표/그리드 헤더: Windows 돋움, macOS·웹 폴백 */
+  --font-header: '돋움', Dotum, 'Apple SD Gothic Neo', 'Nanum Gothic', sans-serif;
 }
 
 * {

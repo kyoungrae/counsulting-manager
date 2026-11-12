@@ -223,6 +223,7 @@
     font-weight: 600;
     color: #555;
     border-bottom: 1px solid #eee;
+    font-family: var(--font-header);
 }
 
 .comparison-table th.sortable {
@@ -459,17 +460,23 @@
     text-align: center;
 }
 
+.excel-style-table th {
+    font-family: var(--font-header);
+}
+
 .excel-header-main {
     background-color: #3b82f6;
     /* Blue in image */
     color: white;
     font-weight: 700;
+    font-family: var(--font-header);
 }
 
 .excel-header-sub {
     background-color: #f3f4f6;
     color: #374151;
     font-weight: 600;
+    font-family: var(--font-header);
 }
 
 .excel-total-row {
@@ -492,6 +499,7 @@
     color: white;
     font-weight: 700;
     width: 80px;
+    font-family: var(--font-header);
 }
 
 .excel-summary-header {
@@ -500,6 +508,7 @@
     padding: 8px 16px;
     display: inline-block;
     border-radius: 4px 4px 0 0;
+    font-family: var(--font-header);
     font-weight: 600;
 }
 
