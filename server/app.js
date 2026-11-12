@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url'
 import { hashPassword, verifyPassword } from './password.js'
 import { createSessionStore } from './db.js'
 import { loginRateKey } from './gateway-rate.js'
-import { importConsultants, prepareConsultantImport, publicConsultant } from './consultants.js'
 
 const cookieName = 'ewha_session'
 const dummyPasswordHash = await hashPassword(randomBytes(32).toString('hex'))
@@ -82,36 +81,6 @@ export function createApp({ db, sessionStore = createSessionStore(db), config })
   })
   app.get('/api/auth/session', (req, res) => {
     res.json(req.account ? publicIdentity(req.account) : { user: null, profile: null })
-  })
-  app.get('/api/auth/consultants', async (req, res) => {
-    if (!req.account) return res.status(401).json({ error: { code: 'auth/required', message: '로그인이 필요합니다.' } })
-    const consultants = await db.collection('consultants').find({}).toArray()
-    res.json({ consultants: consultants.map(publicConsultant) })
-  })
-  // 관리자 전용 최초 등록. 이미 데이터가 있으면 거부한다.
-  app.post('/api/auth/consultants/import', async (req, res) => {
-    if (!req.account) {
-      return res.status(401).json({ error: { code: 'auth/required', message: '로그인이 필요합니다.' } })
-    }
-    if (req.account.role !== 'admin') {
-      return res.status(403).json({ error: { code: 'auth/forbidden', message: '관리자만 상담사 정보를 등록할 수 있습니다.' } })
-    }
-    let consultants
-    try {
-      consultants = prepareConsultantImport(req.body)
-    } catch {
-      return res.status(400).json({ error: { code: 'consultants/invalid', message: '상담사 JSON 형식이 올바르지 않습니다.' } })
-    }
-    try {
-      const imported = await importConsultants(db.collection('consultants'), consultants)
-      res.status(201).json({ imported })
-    } catch (error) {
-      if (String(error?.message || '').includes('이미 있어')) {
-        return res.status(409).json({ error: { code: 'consultants/exists', message: '상담사 데이터가 이미 등록되어 있습니다.' } })
-      }
-      console.error('상담사 초기 등록 실패:', error.name)
-      return res.status(503).json({ error: { code: 'consultants/import-failed', message: '상담사 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.' } })
-    }
   })
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, limit: config.loginRateLimit ?? 10,
