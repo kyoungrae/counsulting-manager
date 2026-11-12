@@ -4,7 +4,6 @@ import Sidebar from './components/Sidebar'
 import SatisfactionMatch from './components/SatisfactionMatch'
 import ResultReportBuilder from './components/ResultReportBuilder'
 import DataExtractionView from './components/DataExtractionView'
-import ExpenseProcessingView from './components/ExpenseProcessingView'
 import ewhaCdcLogo from './assets/ewha-cdc-logo.png'
 
 function AppMain() {
@@ -15,12 +14,10 @@ function AppMain() {
       <Sidebar activeMenu={activeMenu} onMenuClick={setActiveMenu} />
       <main className="main-content">
         <div className="main-content-body">
-          {activeMenu === '만족도 일치여부' ? (
+          {activeMenu === '만족도 검증' ? (
             <SatisfactionMatch />
           ) : activeMenu === '결과보고서' ? (
             <DataExtractionView />
-          ) : activeMenu === '지출처리' ? (
-            <ExpenseProcessingView />
           ) : activeMenu === '결과 보고서 작성' ? (
             <ResultReportBuilder />
           ) : (
