@@ -1210,7 +1210,12 @@ const SatisfactionMatch = () => {
                                                         <div className="reference-data">(실제: {row.reference?.department || '데이터 없음'})</div>
                                                     )}
                                                     {row.matchDetails.department && row.matchDetails.departmentSimilar && (
-                                                        <div className="reference-data">(판정: 일치(유사))</div>
+                                                        <>
+                                                            <div className="reference-data">
+                                                                (실제: {row.reference?.department || '데이터 없음'})
+                                                            </div>
+                                                            <div className="reference-data">(유사)</div>
+                                                        </>
                                                     )}
                                                 </div>
                                             </td>
