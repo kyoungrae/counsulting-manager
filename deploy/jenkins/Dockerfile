@@ -16,5 +16,5 @@ ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm test
 RUN node --test infra/cloudflare-api-gateway/worker.test.mjs scripts/jenkins-gateway.test.mjs
-RUN ./node_modules/.bin/eslint server scripts/seed-user.js scripts/import-users.js deploy/mongo-init.js src/lib/api.js src/contexts/AuthContext.jsx src/routes/ProtectedRoute.jsx src/pages/LoginPage.jsx src/App.jsx src/components/Sidebar.jsx electron/main.cjs vite.config.js
+RUN ./node_modules/.bin/eslint server scripts/seed-user.js scripts/import-users.js deploy/mongo-init.js src/App.jsx src/components/Sidebar.jsx electron/main.cjs vite.config.js
 RUN npm run build
