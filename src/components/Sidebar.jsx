@@ -17,7 +17,7 @@ const Sidebar = ({ activeMenu, onMenuClick }) => {
         { id: 'interview', label: '서류면접', icon: <Users size={20} /> },
         { id: 'correction', label: '서면첨삭', icon: <FileText size={20} /> },
         { id: 'stats', label: '통합통계', icon: <BarChart2 size={20} /> },
-        { id: 'satisfaction-match', label: '만족도 일치여부', icon: <FileText size={20} /> },
+        { id: 'satisfaction-match', label: '만족도 검증', icon: <FileText size={20} /> },
         { id: 'data-extraction', label: '결과보고서', icon: <BarChart2 size={20} /> },
         { id: 'expense-processing', label: '지출처리', icon: <Receipt size={20} /> },
         // { id: 'result-report-builder', label: '결과 보고서 작성', icon: <FileText size={20} /> },

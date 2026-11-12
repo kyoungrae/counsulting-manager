@@ -940,8 +940,8 @@ const SatisfactionMatch = () => {
         });
 
         const wb = XLSXStyle.utils.book_new();
-        XLSXStyle.utils.book_append_sheet(wb, ws, "일치여부 결과");
-        XLSXStyle.writeFile(wb, "만족도_일치여부_결과.xlsx");
+        XLSXStyle.utils.book_append_sheet(wb, ws, "만족도 검증 결과");
+        XLSXStyle.writeFile(wb, "만족도_검증_결과.xlsx");
     };
 
     const handleReset = () => {

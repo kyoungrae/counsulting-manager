@@ -15,7 +15,7 @@ function AppMain() {
       <Sidebar activeMenu={activeMenu} onMenuClick={setActiveMenu} />
       <main className="main-content">
         <div className="main-content-body">
-          {activeMenu === '만족도 일치여부' ? (
+          {activeMenu === '만족도 검증' ? (
             <SatisfactionMatch />
           ) : activeMenu === '결과보고서' ? (
             <DataExtractionView />
