@@ -163,65 +163,49 @@
 
 .stats-summary {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     align-items: center;
     flex-wrap: wrap;
 }
 
-.stats-filter-grid {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(88px, 1fr));
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    overflow: hidden;
-    background: #fff;
-}
-
-.stat-filter-cell {
+.stats-filter-text {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 14px;
     align-items: center;
-    justify-content: center;
-    gap: 2px;
-    min-height: 52px;
-    padding: 8px 10px;
-    border: none;
-    border-right: 1px solid #eef1f0;
-    background: #fafbfa;
-    color: #555;
-    cursor: pointer;
-    transition: background-color 0.15s, color 0.15s;
 }
 
-.stat-filter-cell:last-child {
-    border-right: none;
-}
-
-.stat-filter-cell:hover {
-    background: #f0f6f3;
-}
-
-.stat-filter-cell.active {
-    background: #e8f5e9;
-    color: #00462A;
-}
-
-.stat-filter-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    line-height: 1.2;
+.stat-item {
+    font-size: 0.9rem;
+    color: #666;
     white-space: nowrap;
 }
 
-.stat-filter-count {
-    font-size: 1.05rem;
-    font-weight: 700;
+.stat-item.active {
     color: #00462A;
-    line-height: 1.2;
 }
 
-.stat-filter-cell.active .stat-filter-count {
-    color: #00331f;
+.stat-count-btn {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #00462A;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.stat-count-btn:hover {
+    border-bottom-color: #00462A;
+}
+
+.stat-item.active .stat-count-btn {
+    border-bottom-color: #00462A;
 }
 
 .table-container {
